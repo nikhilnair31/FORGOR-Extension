@@ -4,6 +4,7 @@
     "version": "1.0",
     "description": "Search through your saved data!",
     "action": {
+        "default_title": "Context Menu Extension",
         "default_popup": "popup.html",
         "default_icon": {
             "16": "images/icon16.png",
@@ -17,6 +18,7 @@
         "storage",
         "activeTab",
         "scripting",
+        "contextMenus",
         "webNavigation"
     ],
     "host_permissions": [

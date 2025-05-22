@@ -17,37 +17,68 @@
             --text-0: #999;
             --white: #FFFFFF;
         }
-
+        @font-face {
+            font-family: 'venus_cormier';
+            src: url('/assets/fonts/venus_cormier.otf') format('opentype');
+            font-weight: normal;
+            font-style: normal;
+        }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'venus_cormier', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(to bottom, var(--base-0), var(--base-1));
             margin: 0;
             padding: 0;
             color: var(--gray-15);
         }
+
         .container {
-            width: 200px;
-            padding: 20px;
-            box-shadow: 0 2px 10px var(--shadow-0);
+            gap: 8px;
+            width: 250px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
             border-radius: 0px;
+            box-shadow: 0 2px 10px var(--shadow-0);
             background: linear-gradient(to bottom, var(--base-0), var(--base-1));
+        }
+
+        .top-toggle {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        .toggle-button {
+            padding: 6px 12px;
+            font-size: 13px;
+            background-color: var(--accent-2);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .toggle-button.on {
+            background-color: var(--accent-0);
+            color: var(--accent-1);
         }
 
         h3 {
             color: var(--accent-0);
             text-align: center;
-            margin-top: 0;
+            margin-top: 20px;
             margin-bottom: 20px;
             font-size: 24px;
             font-weight: bold;
         }
-
-        #usernameForm {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
+        p {
+            color: var(--white);
+            text-align: center;
+            font-size: 10px;
         }
+
         button {
+            font-family: 'venus_cormier', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             padding: 10px 16px;
             background-color: var(--accent-1);
             color: white;
@@ -56,6 +87,7 @@
             font-size: 14px;
             cursor: pointer;
             transition: background-color 0.2s;
+            font-size: small;
             font-weight: 500;
         }
         button:hover {
@@ -78,10 +110,12 @@
             FORGOR
         </h3>
         
-        <div id="usernameForm">
-            <button id="searchData">search</button>
-            <button id="toggleSite">enable</button>
-        </div>
+        <button id="searchButton">SEARCH</button>
+        <button id="siteToggleButton">ENABLED FOR THIS SITE</button>
+        
+        <p id="edit-shortcut">
+            WANT TO CHANGE THE SHORTCUT?
+        </p>
     </div>
     <script src="config.js"></script>
     <script src="popup.js"></script>

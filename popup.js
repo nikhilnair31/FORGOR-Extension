@@ -1,10 +1,12 @@
-const { API_BASE, USER_AGENT, APP_KEY } = CONFIG;
+const { API_BASE, WEBSITE_URL, USER_AGENT, APP_KEY } = CONFIG;
+    
+document.getElementById('searchButton').addEventListener('click', function() {
+    window.open(WEBSITE_URL, '_blank');
+});
 
-function updateButtonState(button, isExcluded) {
-    button.textContent = isExcluded ? 'excluded' : 'enabled';
-    button.classList.toggle('excluded', isExcluded);
-    button.classList.toggle('enabled', !isExcluded);
-}
+document.getElementById("edit-shortcut").addEventListener("click", () => {
+    chrome.tabs.create({ url: "chrome://extensions/shortcuts" });
+});
 
 document.addEventListener('DOMContentLoaded', function() {
     chrome.action.setBadgeText({text: ''});
@@ -17,8 +19,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const excludedSites = result.excludedSites || [];
             const isExcluded = excludedSites.includes(domain);
 
-            const toggleButton = document.getElementById('toggleSite');
-            toggleButton.textContent = isExcluded ? 'excluded' : 'enabled';
+            const toggleButton = document.getElementById('siteToggleButton');
+            updateButtonState(toggleButton, isExcluded);
 
             toggleButton.addEventListener('click', function() {
                 chrome.storage.local.get(['excludedSites'], function(result) {
@@ -26,7 +28,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     if (updatedSites.includes(domain)) {
                         updatedSites = updatedSites.filter(site => site !== domain);
-                    } else {
+                    } 
+                    else {
                         updatedSites.push(domain);
                     }
 
@@ -39,7 +42,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
-    
-document.getElementById('searchData').addEventListener('click', function() {
-    window.open(API_BASE, '_blank');
-});
+
+function updateButtonState(button, isExcluded) {
+    button.textContent = isExcluded ? 'SITE EXCLUDED' : 'SITE INCLUDED';
+    button.classList.toggle('excluded', isExcluded);
+    button.classList.toggle('enabled', !isExcluded);
+}

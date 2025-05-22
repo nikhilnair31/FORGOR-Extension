@@ -2,15 +2,26 @@ importScripts('config.js');
 
 let notificationTimer;
 
-chrome.action.onClicked.addListener(() => {
-    clearNotificationBadge();
+chrome.runtime.onInstalled.addListener(() => {
+    // Page URL
+    chrome.contextMenus.create({
+        id: "save-page-url",
+        title: "Save Page URL to FORGOR",
+        contexts: ["page"]
+    });
 
-    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-        const currentTab = tabs[0];
-        chrome.tabs.create({
-            url: 'response.html',
-            index: currentTab.index + 1
-        });
+    // Selected Text
+    chrome.contextMenus.create({
+        id: "save-selection",
+        title: "Save Selection + URL to FORGOR",
+        contexts: ["selection"]
+    });
+
+    // Hovered Image
+    chrome.contextMenus.create({
+        id: "save-image",
+        title: "Save Image + URL to FORGOR",
+        contexts: ["image"]
     });
 });
 
@@ -21,49 +32,6 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
         searchToServer(message.query);
     }
 });
-
-chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
-    if (changeInfo.status === 'complete' && tab.active) {
-        const url = new URL(tab.url);
-        const hostname = url.hostname;
-
-        // Handle common search engines
-        if (hostname.includes('google.') && url.pathname === '/search') {
-            const query = new URLSearchParams(url.search).get('q');
-            if (query) {
-                console.log(`Captured Google search: ${query}`);
-                handleCapturedSearch(query);
-            }
-        }
-        else if (hostname.includes('bing.com') && url.pathname === '/search') {
-            const query = new URLSearchParams(url.search).get('q');
-            if (query) {
-                console.log(`Captured Bing search: ${query}`);
-                handleCapturedSearch(query);
-            }
-        }
-        else if (hostname.includes('duckduckgo.com')) {
-            const query = new URLSearchParams(url.search).get('q');
-            if (query) {
-                console.log(`Captured DuckDuckGo search: ${query}`);
-                handleCapturedSearch(query);
-            }
-        }
-    }
-});
-
-async function getUsername() {
-    return new Promise((resolve) => {
-        chrome.storage.local.get(['username'], function(result) {
-            if (result.username) {
-                resolve(result.username);
-            } else {
-                resolve(null);
-            }
-        });
-    });
-}
-
 async function searchToServer(content) {
     const tokens = await new Promise((resolve) =>
         chrome.storage.local.get(['access_token'], resolve)
@@ -90,16 +58,29 @@ async function searchToServer(content) {
             const formattedResponse = parseResponseText(responseText);
             console.log(`Formatted Lambda response: ${JSON.stringify(formattedResponse)}`);
             
-            // if (isSearch) {
-            //     chrome.runtime.sendMessage({
-            //         type: 'SEARCH_RESULTS',
-            //         results: formattedResponse
-            //     });
-            // } 
-            // else if (formattedResponse.length > 0) {
-            //     chrome.storage.local.set({notification: formattedResponse, searchText: content});
-            //     showNotificationBadge();
-            // }
+            if (isSearch) {
+                chrome.runtime.sendMessage({
+                    type: 'SEARCH_RESULTS',
+                    results: formattedResponse
+                });
+            } 
+            else if (formattedResponse.length > 0) {
+                chrome.storage.local.set({notification: formattedResponse, searchText: content});
+                
+                // Set the badge
+                chrome.action.setBadgeText({text: '!'});
+                chrome.action.setBadgeBackgroundColor({color: '#FF0000'});
+
+                // Clear the previous timer if it exists
+                if (notificationTimer) {
+                    clearTimeout(notificationTimer);
+                }
+
+                // Set a new timer to clear the badge after X seconds
+                notificationTimer = setTimeout(() => {
+                    chrome.action.setBadgeText({text: ''});
+                }, 15000);
+            }
         } 
         else {
             const errorText = await response.text();
@@ -148,27 +129,61 @@ function parseResponseText(responseText) {
     }
 }
 
-function showNotificationBadge() {
-    // Set the badge
-    chrome.action.setBadgeText({text: '!'});
-    chrome.action.setBadgeBackgroundColor({color: '#FF0000'});
+chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
+    if (changeInfo.status !== 'complete' || !tab.active || !tab.url) return;
 
-    // Clear the previous timer if it exists
-    if (notificationTimer) {
-        clearTimeout(notificationTimer);
+    const url = new URL(tab.url);
+    const hostname = url.hostname;
+    const pathname = url.pathname;
+    const query = new URLSearchParams(url.search).get('q');
+
+    const isSearchPage = (
+        (hostname.includes('google.') && pathname === '/search') ||
+        (hostname.includes('bing.com') && pathname === '/search') ||
+        hostname.includes('duckduckgo.com')
+    );
+
+    if (isSearchPage && query) {
+        console.log(`Captured search: ${query}`);
+        chrome.runtime.sendMessage({
+            type: 'SEARCH_REQUEST',
+            query,
+            search: false
+        });
     }
+});
 
-    // Set a new timer to clear the badge after X seconds
-    notificationTimer = setTimeout(clearNotificationBadge, 15000);
-}
-function clearNotificationBadge() {
-    chrome.action.setBadgeText({text: ''});
-}
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+    const tabUrl = info.pageUrl;
 
-function handleCapturedSearch(query) {
-    chrome.runtime.sendMessage({
-        type: 'SEARCH_REQUEST',
-        query: query,
-        search: false
-    });
+    if (info.menuItemId === "save-page-url") {
+        sendToForgor({
+            type: "page", 
+            url: tabUrl 
+        });
+
+    } else if (info.menuItemId === "save-selection") {
+        sendToForgor({
+            type: "selection",
+            text: info.selectionText,
+            url: tabUrl
+        });
+
+    } else if (info.menuItemId === "save-image") {
+        sendToForgor({
+            type: "image",
+            imageUrl: info.srcUrl,
+            url: tabUrl
+        });
+    }
+});
+async function sendToForgor(data) {
+    const tokens = await new Promise((resolve) =>
+        chrome.storage.local.get(['access_token'], resolve)
+    );
+    const accessToken = tokens.access_token;
+    console.log(`Sending data to FORGOR: ${JSON.stringify(data)}`);
+    console.log(`Access Token: ${accessToken}`);
+    
+    // Call the API to send the data
 }
