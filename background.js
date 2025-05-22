@@ -142,7 +142,7 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
     const url = new URL(tab.url);
     const hostname = url.hostname;
     const pathname = url.pathname;
-    const query = new URLSearchParams(url.search).get('q');
+    const inputText = new URLSearchParams(url.search).get('q');
 
     const isSearchPage = (
         (hostname.includes('google.') && pathname === '/search') ||
@@ -150,12 +150,11 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
         hostname.includes('duckduckgo.com')
     );
 
-    if (isSearchPage && query) {
-        console.log(`Captured search: ${query}`);
+    if (isSearchPage && inputText) {
+        console.log(`inputText: ${inputText}`);
         chrome.runtime.sendMessage({
-            type: 'SEARCH_REQUEST',
-            query,
-            search: false
+            type: 'query',
+            query: inputText
         });
     }
 });
@@ -165,16 +164,15 @@ chrome.commands.onCommand.addListener((command) => {
         console.log("Save to app triggered via shortcut!");
 
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-            chrome.scripting.executeScript({
-                target: { tabId: tabs[0].id },
-                function: () => {
-                    tabUrl = window.location.href;
-                    sendToForgor({
-                        type: "page", 
-                        url: tabUrl 
-                    });
-                }
-            });
+            if (tabs && tabs[0]) {
+                const tabUrl = tabs[0].url;
+                sendToForgor_Url({
+                    type: "page",
+                    url: tabUrl
+                });
+            } else {
+                console.warn("No active tab found.");
+            }
         });
     }
 });
@@ -182,33 +180,66 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     const tabUrl = info.pageUrl;
 
     if (info.menuItemId === "save-page-url") {
-        sendToForgor({
+        sendToForgor_Url({
             type: "page", 
             url: tabUrl 
         });
 
     } else if (info.menuItemId === "save-selection") {
-        sendToForgor({
+        sendToForgor_Txt({
             type: "selection",
             text: info.selectionText,
             url: tabUrl
         });
 
     } else if (info.menuItemId === "save-image") {
-        sendToForgor({
+        sendToForgor_Img({
             type: "image",
             imageUrl: info.srcUrl,
             url: tabUrl
         });
     }
 });
-async function sendToForgor(data) {
+async function sendToForgor_Url(data) {
+    console.log(`sendToForgor_Url: ${JSON.stringify(data)}`);
+
     const tokens = await new Promise((resolve) =>
         chrome.storage.local.get(['access_token'], resolve)
     );
     const accessToken = tokens.access_token;
-    console.log(`Sending data to FORGOR: ${JSON.stringify(data)}`);
-    console.log(`Access Token: ${accessToken}`);
-    
-    // Call the API to send the data
+    console.log(`accessToken: ${accessToken}`);
+
+    try {
+        const formData = new FormData();
+        formData.append("url", data.url);
+
+        const response = await fetch(`${CONFIG.API_BASE}/upload/url`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'User-Agent': CONFIG.USER_AGENT,
+                'X-App-Key': CONFIG.APP_KEY,
+            },
+            body: formData,
+        });
+
+        if (response.status === 200) {
+            const responseText = await response.text();
+            console.log(`API response: ${responseText}`);
+
+            const formattedResponse = parseResponseText(responseText);
+            console.log(`Formatted API response: ${JSON.stringify(formattedResponse)}`);
+        } 
+        else {
+            const errorText = await response.text();
+            console.error(`API request failed with status ${response.status}: ${errorText}`);
+        }
+    }
+    catch (error) {
+        console.error('Error sending data to API:', error);
+    }
+}
+async function sendToForgor_Img(data) {
+}
+async function sendToForgor_Txt(data) {
 }
