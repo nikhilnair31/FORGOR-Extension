@@ -88,12 +88,12 @@ document.getElementById('register-button').addEventListener('click', () => {
 });
 async function registerUser(username, password) {
     try {
-        const res = await fetch(`${API_BASE}/register`, {
+        const res = await fetch(`${CONFIG.API_BASE}/register`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'User-Agent': USER_AGENT,
-                'X-App-Key': APP_KEY,
+                'User-Agent': CONFIG.USER_AGENT,
+                'X-App-Key': CONFIG.APP_KEY,
             },
             body: JSON.stringify({ username, password }),
         });
