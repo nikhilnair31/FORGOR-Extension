@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Login / Register</title>
+        <style>
+            /* same styles as before */
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="tabs">
+                <div class="tab active" data-target="login-form">Login</div>
+                <div class="tab" data-target="register-form">Register</div>
+            </div>
+
+            <!-- Login Form -->
+            <div id="login-form" class="form active">
+                <h2>Login</h2>
+                <input type="text" placeholder="Username" id="login-username">
+                <input type="password" placeholder="Password" id="login-password">
+                <button id="login-button">Login</button>
+            </div>
+
+            <!-- Register Form -->
+            <div id="register-form" class="form">
+                <h2>Register</h2>
+                <input type="text" placeholder="Username" id="register-username">
+                <input type="password" placeholder="Password" id="register-password">
+                <button id="register-button">Register</button>
+            </div>
+        </div>
+
+        <script src="config.js"></script>
+        <script src="login.js"></script>
+    </body>
+</html>

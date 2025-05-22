@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FORGOR</title>
+    <style>
+        :root {
+            --accent-0: #d7fc70;
+            --accent-1: #7654b1;
+            --accent-2: #8e6dc6;
+            --base-0: #1e1c2c;
+            --base-1: #1e1b2e;
+            --base-2: #343243;
+            --shadow-0: #0000001a;
+            --shadow-1: #0000004d;
+            --text-0: #999;
+            --white: #FFFFFF;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(to bottom, var(--base-0), var(--base-1));
+            margin: 0;
+            padding: 0;
+            color: var(--gray-15);
+        }
+        .container {
+            width: 200px;
+            padding: 20px;
+            box-shadow: 0 2px 10px var(--shadow-0);
+            border-radius: 0px;
+            background: linear-gradient(to bottom, var(--base-0), var(--base-1));
+        }
+
+        h3 {
+            color: var(--accent-0);
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        #usernameForm {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        button {
+            padding: 10px 16px;
+            background-color: var(--accent-1);
+            color: white;
+            border: none;
+            border-radius: 0px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-weight: 500;
+        }
+        button:hover {
+            background-color: var(--accent-2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h3>FORGOR</h3>
+        
+        <div id="usernameForm">
+            <button id="searchData">search</button>
+            <button id="toggleSite">enable</button>
+        </div>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>
