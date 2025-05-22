@@ -60,79 +60,31 @@ async function searchToServer(content) {
 
         if (response.status === 200) {
             const responseText = await response.text();
-            console.log(`Lambda response: ${responseText}`);
-
-            const formattedResponse = parseResponseText(responseText);
-            console.log(`Formatted Lambda response: ${JSON.stringify(formattedResponse)}`);
+            console.log(`API response: ${responseText}`);
             
-            if (isSearch) {
-                chrome.runtime.sendMessage({
-                    type: 'SEARCH_RESULTS',
-                    results: formattedResponse
-                });
-            } 
-            else if (formattedResponse.length > 0) {
-                chrome.storage.local.set({notification: formattedResponse, searchText: content});
-                
-                // Set the badge
-                chrome.action.setBadgeText({text: '!'});
-                chrome.action.setBadgeBackgroundColor({color: '#FF0000'});
+            chrome.storage.local.set({responseContent: responseText, queryText: content});
+            
+            // Set the badge
+            chrome.action.setBadgeText({text: '!'});
+            chrome.action.setBadgeBackgroundColor({color: '#FF0000'});
 
-                // Clear the previous timer if it exists
-                if (notificationTimer) {
-                    clearTimeout(notificationTimer);
-                }
-
-                // Set a new timer to clear the badge after X seconds
-                notificationTimer = setTimeout(() => {
-                    chrome.action.setBadgeText({text: ''});
-                }, 15000);
+            // Clear the previous timer if it exists
+            if (notificationTimer) {
+                clearTimeout(notificationTimer);
             }
+
+            // Set a new timer to clear the badge after X seconds
+            notificationTimer = setTimeout(() => {
+                chrome.action.setBadgeText({text: ''});
+            }, 15000);
         } 
         else {
             const errorText = await response.text();
-            console.error(`Lambda request failed with status ${response.status}: ${errorText}`);
-            if (isSearch) {
-                chrome.runtime.sendMessage({
-                    type: 'SEARCH_ERROR',
-                    error: `Lambda request failed: ${errorText}`
-                });
-            }
+            console.error(`API request failed with status ${response.status}: ${errorText}`);
         }
     }
     catch (error) {
-        console.error('Error sending data to Lambda:', error);
-        if (isSearch) {
-            chrome.runtime.sendMessage({
-                type: 'SEARCH_ERROR',
-                error: `Error during search: ${error.message}`
-            });
-        }
-    }
-}
-function parseResponseText(responseText) {
-    try {
-        const responseObj = typeof responseText === 'string' ? JSON.parse(responseText) : responseText;
-
-        if (responseObj.results && responseObj.results.length > 0) {
-            const formattedResults = responseObj.results.map(result => ({
-                image_presigned_url: `${CONFIG.API_BASE}${result.image_presigned_url}`,
-                post_url: result.post_url,
-                image_text: result.image_text,
-                timestamp_str: result.timestamp_str
-            }));
-            console.log(`formattedResults\n${JSON.stringify(formattedResults)}`);
-            // console.log(`Found ${formattedResults.length} results`);
-            return formattedResults;
-        } 
-        else {
-            console.log('No results found in response');
-            return [];
-        }
-    } 
-    catch (error) {
-        console.error(`Error parsing response: ${error.message}`);
-        return [];
+        console.error('Error sending data to API:', error);
     }
 }
 
@@ -226,9 +178,6 @@ async function sendToForgor_Url(data) {
         if (response.status === 200) {
             const responseText = await response.text();
             console.log(`API response: ${responseText}`);
-
-            const formattedResponse = parseResponseText(responseText);
-            console.log(`Formatted API response: ${JSON.stringify(formattedResponse)}`);
         } 
         else {
             const errorText = await response.text();
