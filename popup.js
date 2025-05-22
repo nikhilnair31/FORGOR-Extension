@@ -1,3 +1,11 @@
+const { API_BASE, USER_AGENT, APP_KEY } = CONFIG;
+
+function updateButtonState(button, isExcluded) {
+    button.textContent = isExcluded ? 'excluded' : 'enabled';
+    button.classList.toggle('excluded', isExcluded);
+    button.classList.toggle('enabled', !isExcluded);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     chrome.action.setBadgeText({text: ''});
     
@@ -22,15 +30,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         updatedSites.push(domain);
                     }
 
-                    chrome.storage.local.set({ excludedSites: updatedSites }, function() {
-                        toggleButton.textContent = updatedSites.includes(domain) ? 'excluded' : 'enabled';
+                    chrome.storage.local.set({ excludedSites: updatedSites }, function () {
+                        const nowExcluded = updatedSites.includes(domain);
+                        updateButtonState(toggleButton, nowExcluded);
                     });
                 });
             });
         });
     });
+});
     
-    document.getElementById('searchData').addEventListener('click', function() {
-        window.open('response.html', '_blank');
-    });
+document.getElementById('searchData').addEventListener('click', function() {
+    window.open(API_BASE, '_blank');
 });

@@ -61,17 +61,29 @@
         button:hover {
             background-color: var(--accent-2);
         }
+        button.enabled {
+            background-color: var(--accent-0);
+            color: var(--accent-1);
+        }
+        button.excluded {
+            background-color: var(--accent-1);
+            color: white;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h3>FORGOR</h3>
+        <h3>
+            <img src="assets/icon.png" alt="Icon" style="width: 24px; height: 24px; vertical-align: middle; margin-right: 8px;">
+            FORGOR
+        </h3>
         
         <div id="usernameForm">
             <button id="searchData">search</button>
             <button id="toggleSite">enable</button>
         </div>
     </div>
+    <script src="config.js"></script>
     <script src="popup.js"></script>
 </body>
 </html>
