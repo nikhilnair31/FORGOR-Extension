@@ -2,7 +2,14 @@ importScripts('config.js');
 
 let notificationTimer;
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details) => {
+    // Show login page if the extension is installed for the first time
+    if (details.reason === "update") { // install
+        chrome.tabs.create({
+            url: "login.html"
+        });
+    }
+
     // Page URL
     chrome.contextMenus.create({
         id: "save-page-url",

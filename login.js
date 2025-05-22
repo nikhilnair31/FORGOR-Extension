@@ -1,13 +1,21 @@
-const CONFIG = {
-    API_BASE: 'https://your.api.server',
-    USER_AGENT: 'MyExtension/1.0',
-    APP_KEY: 'your-app-key'
-};
+// === Form Tab Switching ===
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        // Update active tab
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
 
+        // Show corresponding form
+        const target = tab.getAttribute('data-target');
+        document.querySelectorAll('.form').forEach(f => f.classList.remove('active'));
+        document.getElementById(target).classList.add('active');
+    });
+});
+
+// === Login ===
 document.getElementById('login-button').addEventListener('click', () => {
     const username = document.getElementById('login-username').value;
     const password = document.getElementById('login-password').value;
-    console.log(`Logging in with username: ${username} and password: ${password}`);
 
     loginUser(username, password).then(response => {
         if (response.status === 'success') {
@@ -19,6 +27,41 @@ document.getElementById('login-button').addEventListener('click', () => {
         }
     });
 });
+async function loginUser(username, password) {
+    try {
+        console.log(`Logging in with username: ${username} and password: ${password}`);
+        
+        const res = await fetch(`${CONFIG.API_BASE}/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': CONFIG.USER_AGENT,
+                'X-App-Key': CONFIG.APP_KEY,
+            },
+            body: JSON.stringify({ username, password }),
+        });
+
+        console.log(`Response status: ${JSON.stringify(res)}`);
+
+        const data = await res.json();
+        if (res.ok) {
+            await chrome.storage.local.set({
+                username: username,
+                access_token: data.access_token,
+                refresh_token: data.refresh_token,
+            });
+            return { status: 'success' };
+        } 
+        else {
+            return { status: 'error', message: data.message };
+        }
+    } 
+    catch (err) {
+        return { status: 'error', message: 'Network error' };
+    }
+}
+
+// === Register ===
 document.getElementById('register-button').addEventListener('click', () => {
     const username = document.getElementById('register-username').value;
     const password = document.getElementById('register-password').value;
@@ -43,36 +86,6 @@ document.getElementById('register-button').addEventListener('click', () => {
         }
     });
 });
-
-async function loginUser(username, password) {
-    try {
-        const res = await fetch(`${API_BASE}/login`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'User-Agent': USER_AGENT,
-                'X-App-Key': APP_KEY,
-            },
-            body: JSON.stringify({ username, password }),
-        });
-
-        const data = await res.json();
-        if (res.ok) {
-            await chrome.storage.local.set({
-                username: username,
-                access_token: data.access_token,
-                refresh_token: data.refresh_token,
-            });
-            return { status: 'success' };
-        } 
-        else {
-            return { status: 'error', message: data.message };
-        }
-    } 
-    catch (err) {
-        return { status: 'error', message: 'Network error' };
-    }
-}
 async function registerUser(username, password) {
     try {
         const res = await fetch(`${API_BASE}/register`, {
@@ -100,6 +113,8 @@ async function registerUser(username, password) {
         return { status: 'error', message: 'Network error' };
     }
 }
+
+// === Other ===
 async function refreshAccessToken(refresh_token) {
     try {
         const res = await fetch(`${API_BASE}/refresh_token`, {
