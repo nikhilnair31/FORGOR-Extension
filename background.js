@@ -35,9 +35,18 @@ chrome.runtime.onInstalled.addListener((details) => {
 chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
     console.log(`Message received in background: ${JSON.stringify(message)}`);
 
-    if (message.type === 'query') {
+    if (message.type !== 'query') return;
+
+    chrome.storage.local.get('excludedSites', ({ excludedSites = [] }) => {
+        const domain = new URL(message.url || sender.url).hostname;
+
+        if (excludedSites.includes(domain)) {
+            console.log(`Extension disabled for ${domain}`);
+            return;
+        }
+
         searchToServer(message.query);
-    }
+    });
 });
 async function searchToServer(content) {
     const tokens = await new Promise((resolve) =>

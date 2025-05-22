@@ -4,7 +4,9 @@
 
 ### To-Do
 
-- [ ] Update extension page to show image details on click
+- [ ] Add some UI popup to let user know there was something relevant to show
+- [ ] On click while active directly open website
+- [ ] Instead of badge maybe change the icon
 
 ### Skipped
 

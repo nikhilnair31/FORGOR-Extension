@@ -1,17 +1,6 @@
 let debounceTimer;
 
-chrome.storage.local.get(['excludedSites'], function(result) {
-    const excludedSites = result.excludedSites || [];
-    const url = new URL(window.location.href);
-    const domain = url.hostname;
-
-    if (excludedSites.includes(domain)) {
-        console.log(`Extension disabled for ${domain}`);
-        return;
-    }
-
-    document.addEventListener('input', handleInput, true);
-});
+document.addEventListener('input', handleInput, true);
 
 function handleInput(event) {
     console.log(`handleInput`);
