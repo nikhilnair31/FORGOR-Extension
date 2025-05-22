@@ -153,6 +153,24 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
     }
 });
 
+chrome.commands.onCommand.addListener((command) => {
+    if (command === "save_to_app") {
+        console.log("Save to app triggered via shortcut!");
+
+        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+            chrome.scripting.executeScript({
+                target: { tabId: tabs[0].id },
+                function: () => {
+                    tabUrl = window.location.href;
+                    sendToForgor({
+                        type: "page", 
+                        url: tabUrl 
+                    });
+                }
+            });
+        });
+    }
+});
 chrome.contextMenus.onClicked.addListener((info, tab) => {
     const tabUrl = info.pageUrl;
 

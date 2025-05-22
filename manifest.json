@@ -27,6 +27,14 @@
     "background": {
         "service_worker": "background.js"
     },
+    "commands": {
+        "save_to_app": {
+            "suggested_key": {
+                "default": "Ctrl+Shift+F"
+            },
+            "description": "SAVE TO FORGOR"
+        }
+    },
     "content_scripts": [
         {
             "matches": [
