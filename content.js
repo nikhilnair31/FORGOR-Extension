@@ -27,9 +27,8 @@ function handleInput(event) {
             console.log(`inputText: ${inputText}`);
             
             chrome.runtime.sendMessage({
-                type: 'SEARCH_REQUEST',
-                query: inputText,
-                search: false
+                type: 'query',
+                query: inputText
             });
         }, 1000);
     }

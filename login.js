@@ -1,4 +1,8 @@
-const { API_BASE, USER_AGENT, APP_KEY } = CONFIG;
+const CONFIG = {
+    API_BASE: 'https://your.api.server',
+    USER_AGENT: 'MyExtension/1.0',
+    APP_KEY: 'your-app-key'
+};
 
 document.getElementById('login-button').addEventListener('click', () => {
     const username = document.getElementById('login-username').value;

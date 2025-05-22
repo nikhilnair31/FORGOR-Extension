@@ -17,8 +17,8 @@ chrome.action.onClicked.addListener(() => {
 chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
     console.log(`Message received in background: ${JSON.stringify(message)}`);
 
-    if (message.type === 'SEARCH_REQUEST') {
-        sendToEnpoint(message.query, message.search); // Call Lambda with the search query and indicate it's a search
+    if (message.type === 'query') {
+        searchToServer(message.query);
     }
 });
 
@@ -64,52 +64,42 @@ async function getUsername() {
     });
 }
 
-async function sendToEnpoint(content = '', isSearch = false) {
+async function searchToServer(content) {
+    const tokens = await new Promise((resolve) =>
+        chrome.storage.local.get(['access_token'], resolve)
+    );
+
+    const accessToken = tokens.access_token;
+
     try {
-        // Create the endpoint URL
-        const endpoint = `${API_BASE}/query`;
-
-        // Get username from storage using a Promise wrapper
-        const username = await getUsername();
-
-        // Prepare the data to send to Lambda
-        const data = {
-            username: username,
-            searchText: content
-        };
-        console.log(`Sending data to Lambda: ${JSON.stringify(data)}`);
-
-        // Send the data to Lambda
-        const response = await fetch(endpoint, {
+        const response = await fetch(`${CONFIG.API_BASE}/query`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`,
+                'User-Agent': CONFIG.USER_AGENT,
+                'X-App-Key': CONFIG.APP_KEY,
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify({searchText: content}),
         });
 
-        // Check if response is 200
         if (response.status === 200) {
-            // Get the response content
             const responseText = await response.text();
-            // console.log(`Lambda response: ${responseText}`);
+            console.log(`Lambda response: ${responseText}`);
 
-            // Parse the response
             const formattedResponse = parseResponseText(responseText);
-            // console.log(`Formatted Lambda response: ${formattedResponse}`);
-
-            // If it's a search request, send the results back to response.js
-            console.log(`isSearch: ${isSearch} | formattedResponse.length: ${formattedResponse.length}`);
-            if (isSearch) {
-                chrome.runtime.sendMessage({
-                    type: 'SEARCH_RESULTS',
-                    results: formattedResponse
-                });
-            } 
-            else if (formattedResponse.length > 0) {
-                chrome.storage.local.set({notification: formattedResponse, searchText: content});
-                showNotificationBadge();
-            }
+            console.log(`Formatted Lambda response: ${JSON.stringify(formattedResponse)}`);
+            
+            // if (isSearch) {
+            //     chrome.runtime.sendMessage({
+            //         type: 'SEARCH_RESULTS',
+            //         results: formattedResponse
+            //     });
+            // } 
+            // else if (formattedResponse.length > 0) {
+            //     chrome.storage.local.set({notification: formattedResponse, searchText: content});
+            //     showNotificationBadge();
+            // }
         } 
         else {
             const errorText = await response.text();
@@ -138,7 +128,7 @@ function parseResponseText(responseText) {
 
         if (responseObj.results && responseObj.results.length > 0) {
             const formattedResults = responseObj.results.map(result => ({
-                image_presigned_url: `${API_BASE}${result.image_presigned_url}`,
+                image_presigned_url: `${CONFIG.API_BASE}${result.image_presigned_url}`,
                 post_url: result.post_url,
                 image_text: result.image_text,
                 timestamp_str: result.timestamp_str
@@ -146,11 +136,13 @@ function parseResponseText(responseText) {
             console.log(`formattedResults\n${JSON.stringify(formattedResults)}`);
             // console.log(`Found ${formattedResults.length} results`);
             return formattedResults;
-        } else {
+        } 
+        else {
             console.log('No results found in response');
             return [];
         }
-    } catch (error) {
+    } 
+    catch (error) {
         console.error(`Error parsing response: ${error.message}`);
         return [];
     }
