@@ -45,6 +45,12 @@
             ]
         }
     ],
+    "web_accessible_resources": [
+        {
+            "resources": ["toast.html", "assets/fonts/venus_cormier.otf"],
+            "matches": ["<all_urls>"]
+        }
+    ],
     "icons": {
         "16": "images/icon16.png",
         "32": "images/icon32.png",

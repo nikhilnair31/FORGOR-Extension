@@ -72,20 +72,19 @@ async function searchToServer(content) {
             console.log(`API response: ${responseText}`);
             
             chrome.storage.local.set({responseContent: responseText, queryText: content});
+
+            // Notify content script
+            chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                if (tabs[0]?.id) {
+                    chrome.tabs.sendMessage(tabs[0].id, {type: 'results-toast'});
+                }
+            });
             
-            // Set the badge
+            // Flash badge
             chrome.action.setBadgeText({text: '!'});
             chrome.action.setBadgeBackgroundColor({color: '#FF0000'});
-
-            // Clear the previous timer if it exists
-            if (notificationTimer) {
-                clearTimeout(notificationTimer);
-            }
-
-            // Set a new timer to clear the badge after X seconds
-            notificationTimer = setTimeout(() => {
-                chrome.action.setBadgeText({text: ''});
-            }, 15000);
+            if (notificationTimer) clearTimeout(notificationTimer);
+            notificationTimer = setTimeout(() => chrome.action.setBadgeText({text: ''}), 15000);
         } 
         else {
             const errorText = await response.text();
@@ -122,8 +121,6 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
 
 chrome.commands.onCommand.addListener((command) => {
     if (command === "save_to_app") {
-        console.log("Save to app triggered via shortcut!");
-
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
             if (tabs && tabs[0]) {
                 const tabUrl = tabs[0].url;
@@ -168,7 +165,6 @@ async function sendToForgor_Url(data) {
         chrome.storage.local.get(['access_token'], resolve)
     );
     const accessToken = tokens.access_token;
-    console.log(`accessToken: ${accessToken}`);
 
     try {
         const formData = new FormData();
