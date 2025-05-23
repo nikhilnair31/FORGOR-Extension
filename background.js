@@ -73,18 +73,8 @@ async function searchToServer(content) {
             
             chrome.storage.local.set({responseContent: responseText, queryText: content});
 
-            // Notify content script
-            chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-                if (tabs[0]?.id) {
-                    chrome.tabs.sendMessage(tabs[0].id, {type: 'results-toast'});
-                }
-            });
-            
-            // Flash badge
-            chrome.action.setBadgeText({text: '!'});
-            chrome.action.setBadgeBackgroundColor({color: '#FF0000'});
-            if (notificationTimer) clearTimeout(notificationTimer);
-            notificationTimer = setTimeout(() => chrome.action.setBadgeText({text: ''}), 15000);
+            showBadge()
+            showToast('FORGOR FOUND SOMETHING YOU\'VE SAVED');
         } 
         else {
             const errorText = await response.text();
@@ -183,6 +173,7 @@ async function sendToForgor_Url(data) {
         if (response.status === 200) {
             const responseText = await response.text();
             console.log(`API response: ${responseText}`);
+            showToast('SAVED');
         } 
         else {
             const errorText = await response.text();
@@ -196,4 +187,21 @@ async function sendToForgor_Url(data) {
 async function sendToForgor_Img(data) {
 }
 async function sendToForgor_Txt(data) {
+}
+
+function showToast(content) {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0]?.id) {
+            chrome.tabs.sendMessage(tabs[0].id, {
+                type: 'flash-toast',
+                text: content
+            });
+        }
+    });
+}
+function showBadge() {
+    chrome.action.setBadgeText({text: '!'});
+    chrome.action.setBadgeBackgroundColor({color: '#FF0000'});
+    if (notificationTimer) clearTimeout(notificationTimer);
+    notificationTimer = setTimeout(() => chrome.action.setBadgeText({text: ''}), 15000);
 }
