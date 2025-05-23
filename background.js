@@ -141,7 +141,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
         });
 
     } else if (info.menuItemId === "save-image") {
-        sendToForgor_Img({
+        sendToForgor_ImgUrl({
             type: "image",
             imageUrl: info.srcUrl,
             url: tabUrl
@@ -184,9 +184,46 @@ async function sendToForgor_Url(data) {
         console.error('Error sending data to API:', error);
     }
 }
-async function sendToForgor_Img(data) {
+async function sendToForgor_ImgUrl(data) {
+    console.log(`sendToForgor_Img: ${JSON.stringify(data)}`);
+
+    const tokens = await new Promise((resolve) =>
+        chrome.storage.local.get(['access_token'], resolve)
+    );
+    const accessToken = tokens.access_token;
+
+    try {
+        const formData = new FormData();
+        formData.append("image_url", data.imageUrl);
+        formData.append("post_url", data.url);  // page the image came from
+
+        const response = await fetch(`${CONFIG.API_BASE}/upload/imageurl`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'User-Agent': CONFIG.USER_AGENT,
+                'X-App-Key': CONFIG.APP_KEY,
+            },
+            body: formData,
+        });
+
+        if (response.ok) {
+            const responseText = await response.text();
+            console.log(`API response: ${responseText}`);
+            showToast('IMAGE SAVED');
+        } else {
+            const errorText = await response.text();
+            console.error(`API request failed with status ${response.status}: ${errorText}`);
+            showToast('FAILED TO SAVE');
+        }
+    }
+    catch (error) {
+        console.error('Error sending image to API:', error);
+        showToast('ERROR');
+    }
 }
 async function sendToForgor_Txt(data) {
+    console.log(`sendToForgor_Txt: ${JSON.stringify(data)}`);
 }
 
 function showToast(content) {
