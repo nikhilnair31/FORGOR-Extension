@@ -4,7 +4,7 @@
 
 ### To-Do
 
-- [ ] On click while active directly open website
+- [ ]
 
 ### Skipped
 
@@ -13,6 +13,7 @@
 ### Done
 
 - [x]
+- [x] On click while active directly open website
 - [x] Instead of badge maybe change the icon
 - [x] Add some UI popup to let user know there was something relevant to show
 - [x] Update extension to complete auth register/login/edit
