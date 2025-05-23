@@ -73,7 +73,7 @@ async function searchToServer(content) {
             
             chrome.storage.local.set({responseContent: responseText, queryText: content});
 
-            showBadge()
+            showIconAlert()
             showToast('FORGOR FOUND SOMETHING YOU\'VE SAVED');
         } 
         else {
@@ -204,4 +204,26 @@ function showBadge() {
     chrome.action.setBadgeBackgroundColor({color: '#FF0000'});
     if (notificationTimer) clearTimeout(notificationTimer);
     notificationTimer = setTimeout(() => chrome.action.setBadgeText({text: ''}), 15000);
+}
+function showIconAlert() {
+    chrome.action.setIcon({
+        path: {
+        "16": "images/icon16_1.png",
+        "32": "images/icon32_1.png",
+        "48": "images/icon48_1.png",
+        "128": "images/icon128_1.png"
+        }
+    });
+
+    if (notificationTimer) clearTimeout(notificationTimer);
+    notificationTimer = setTimeout(() => {
+        chrome.action.setIcon({
+        path: {
+            "16": "images/icon16.png",
+            "32": "images/icon32.png",
+            "48": "images/icon48.png",
+            "128": "images/icon128.png"
+        }
+        });
+    }, 15000);
 }

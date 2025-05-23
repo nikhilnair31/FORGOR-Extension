@@ -4,9 +4,7 @@
 
 ### To-Do
 
-- [ ] Add some UI popup to let user know there was something relevant to show
 - [ ] On click while active directly open website
-- [ ] Instead of badge maybe change the icon
 
 ### Skipped
 
@@ -15,6 +13,8 @@
 ### Done
 
 - [x]
+- [x] Instead of badge maybe change the icon
+- [x] Add some UI popup to let user know there was something relevant to show
 - [x] Update extension to complete auth register/login/edit
 - [x] Update extension to allow for custom shortcuts
 - [x] Update extension to save data on shortcut
