@@ -4,7 +4,9 @@
 
 ### To-Do
 
-- [ ]
+- [ ] Update text saving function
+- [ ] Add file saving function?
+- [ ] Change onInstall to install not update
 
 ### Skipped
 

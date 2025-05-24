@@ -56,7 +56,7 @@ async function searchToServer(content) {
     const accessToken = tokens.access_token;
 
     try {
-        const response = await fetch(`${CONFIG.API_BASE}/query`, {
+        const response = await fetch(`${CONFIG.API_BASE}/api/check`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -69,9 +69,15 @@ async function searchToServer(content) {
 
         if (response.status === 200) {
             const responseText = await response.text();
-            console.log(`API response: ${responseText}`);
+            // console.log(`responseText: ${responseText}`);
+
+            var responseJson = JSON.parse(responseText);
+            useful_content = responseJson.useful_content;
+            query_text = responseJson.query_text;
+            var saveDict = {useful: useful_content, query: query_text}
+            console.log(`saveDict: ${JSON.stringify(saveDict)}`);
             
-            chrome.storage.local.set({responseContent: responseText, queryText: content});
+            chrome.storage.local.set({useful: useful_content, query: query_text});
 
             showIconAlert()
             showToast('FORGOR FOUND SOMETHING YOU\'VE SAVED');
@@ -160,7 +166,7 @@ async function sendToForgor_Url(data) {
         const formData = new FormData();
         formData.append("url", data.url);
 
-        const response = await fetch(`${CONFIG.API_BASE}/upload/url`, {
+        const response = await fetch(`${CONFIG.API_BASE}/api/upload/url`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
@@ -197,7 +203,7 @@ async function sendToForgor_ImgUrl(data) {
         formData.append("image_url", data.imageUrl);
         formData.append("post_url", data.url);  // page the image came from
 
-        const response = await fetch(`${CONFIG.API_BASE}/upload/imageurl`, {
+        const response = await fetch(`${CONFIG.API_BASE}/api/upload/imageurl`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
