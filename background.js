@@ -1,10 +1,12 @@
+// background.js
+
 importScripts('config.js');
 
 let notificationTimer;
 
 chrome.runtime.onInstalled.addListener((details) => {
     // Show login page if the extension is installed for the first time
-    if (details.reason === "update") { // install
+    if (details.reason === "install") { // install or update
         chrome.tabs.create({
             url: "login.html"
         });
@@ -35,18 +37,20 @@ chrome.runtime.onInstalled.addListener((details) => {
 chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
     console.log(`Message received in background: ${JSON.stringify(message)}`);
 
-    if (message.type !== 'query') return;
+    if (message.type === 'query') {
+        chrome.storage.local.get('excludedSites', ({ excludedSites = [] }) => {
+            const domain = new URL(message.url || sender.url).hostname;
+            if (excludedSites.includes(domain)) {
+                console.log(`Extension disabled for ${domain}`);
+                return;
+            }
+            searchToServer(message.query);
+        });
+    }
 
-    chrome.storage.local.get('excludedSites', ({ excludedSites = [] }) => {
-        const domain = new URL(message.url || sender.url).hostname;
-
-        if (excludedSites.includes(domain)) {
-            console.log(`Extension disabled for ${domain}`);
-            return;
-        }
-
-        searchToServer(message.query);
-    });
+    if (message.type === 'html-dump') {
+        sendToForgor_Html(message.html, message.url, message.timestamp);
+    }
 });
 async function searchToServer(content) {
     const tokens = await new Promise((resolve) =>
@@ -90,6 +94,40 @@ async function searchToServer(content) {
         console.error('Error sending data to API:', error);
     }
 }
+async function sendToForgor_Html(html, url, timestamp) {
+    const tokens = await new Promise((resolve) =>
+        chrome.storage.local.get(['access_token'], resolve)
+    );
+    const accessToken = tokens.access_token;
+
+    try {
+        const formData = new FormData();
+        formData.append("html", new Blob([html], { type: 'text/html' }));
+        formData.append("url", url);
+        formData.append("timestamp", timestamp.toString());
+
+        const response = await fetch(`${CONFIG.API_BASE}/api/index`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'User-Agent': CONFIG.USER_AGENT,
+                'X-App-Key': CONFIG.APP_KEY,
+            },
+            body: formData,
+        });
+
+        if (response.ok) {
+            const responseText = await response.text();
+            console.log(`HTML upload success: ${responseText}`);
+            showToast('HTML SAVED');
+        } else {
+            const errorText = await response.text();
+            console.error(`HTML upload failed: ${errorText}`);
+        }
+    } catch (error) {
+        console.error('Failed to send HTML:', error);
+    }
+}
 
 chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
     if (changeInfo.status !== 'complete' || !tab.active || !tab.url) return;
@@ -123,6 +161,15 @@ chrome.commands.onCommand.addListener((command) => {
                     type: "page",
                     url: tabUrl
                 });
+            } else {
+                console.warn("No active tab found.");
+            }
+        });
+    }
+    if (command === "index_site_posts") {
+        chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+            if (tabs && tabs[0]) {
+                chrome.tabs.sendMessage(tabs[0].id, { type: 'index-posts' });
             } else {
                 console.warn("No active tab found.");
             }

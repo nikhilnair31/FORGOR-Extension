@@ -70,64 +70,32 @@ function indexPosts() {
         // If height hasn't changed for 20 checks (e.g. 100ms * 20 = 2 seconds), stop
         if (stableCounter >= 20) {
             clearInterval(intervalId);
-            extractPostLinks();
+
+            const cleanHtml = getSanitizedHtml();
+            chrome.runtime.sendMessage({
+                type: 'html-dump',
+                html: cleanHtml,
+                url: window.location.href,
+                timestamp: Date.now(),
+            });
         }
     }, 100);
 }
-function extractPostLinks() {
-    const container = document.querySelector('.vbI.XiG');
-    if (!container) {
-        console.log("Post container not found");
-        return;
-    }
+function getSanitizedHtml() {
+    const clone = document.documentElement.cloneNode(true);
 
-    const allAnchors = container.querySelectorAll('a[href]');
-
-    const allLinks = new Set();
-    const relevantLinks = new Set();
-    const excludedLinks = new Set();
-
-    const includePatterns = [
-        /\/pin\/\d+/,        // Pinterest post
-        /\/post\/\d+/,       // Generic blog post
-        /\/p\/[^\/]+/,       // Instagram style
-    ];
-
-    const excludePatterns = [
-        /\/login/,
-        /\/signup/,
-        /\/explore/,
-        /\/ads/,
-        /\/notifications/,
-        /\/search/,
-        /\/help/,
-    ];
-
-    allAnchors.forEach(anchor => {
-        const url = anchor.href.trim();
-        if (!url || allLinks.has(url)) return;
-
-        allLinks.add(url);
-
-        const isExcluded = excludePatterns.some(re => re.test(url));
-        const isIncluded = includePatterns.some(re => re.test(url));
-
-        if (isExcluded) {
-            excludedLinks.add(url);
-        } else if (isIncluded) {
-            relevantLinks.add(url);
-        }
+    // Remove <script>, <style>, <iframe>, <object> tags
+    const tagsToRemove = ['script', 'style', 'iframe', 'object'];
+    tagsToRemove.forEach(tag => {
+        clone.querySelectorAll(tag).forEach(el => el.remove());
     });
 
-    // Comparison logs
-    console.log(`🔎 All links found: ${allLinks.size}`);
-    console.log(`✅ Relevant post links: ${relevantLinks.size}`);
-    console.log(`❌ Excluded links: ${excludedLinks.size}`);
-    console.log(`🤔 Unmatched leftovers: ${[...allLinks].filter(x => !relevantLinks.has(x) && !excludedLinks.has(x)).length}`);
+    // Optional: remove comments
+    const treeWalker = document.createTreeWalker(clone, NodeFilter.SHOW_COMMENT);
+    let comment;
+    while (comment = treeWalker.nextNode()) {
+        comment.parentNode.removeChild(comment);
+    }
 
-    // Optional detailed logs
-    console.log("🧺 All:", [...allLinks]);
-    console.log("✅ Relevant:", [...relevantLinks]);
-    console.log("❌ Excluded:", [...excludedLinks]);
-    console.log("🤔 Missed:", [...allLinks].filter(x => !relevantLinks.has(x) && !excludedLinks.has(x)));
+    return clone.outerHTML;
 }

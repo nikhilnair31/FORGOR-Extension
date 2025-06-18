@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "FORGOR",
-    "version": "0.0.0.1",
+    "version": "0.0.1",
     "description": "Search through your saved data!",
     "action": {
         "default_title": "Context Menu Extension",
@@ -32,6 +32,12 @@
                 "default": "Ctrl+Shift+F"
             },
             "description": "SAVE TO FORGOR"
+        },
+        "index_site_posts": {
+            "suggested_key": {
+                "default": "Ctrl+Shift+X"
+            },
+            "description": "INDEX ALL POSTS"
         }
     },
     "content_scripts": [
