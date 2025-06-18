@@ -69,13 +69,12 @@ async function searchToServer(content) {
 
         if (response.status === 200) {
             const responseText = await response.text();
-            // console.log(`responseText: ${responseText}`);
+            console.log(`responseText: ${responseText}`);
 
             var responseJson = JSON.parse(responseText);
             useful_content = responseJson.useful_content;
             query_text = responseJson.query_text;
             var saveDict = {useful: useful_content, query: query_text}
-            console.log(`saveDict: ${JSON.stringify(saveDict)}`);
             
             chrome.storage.local.set({useful: useful_content, query: query_text});
 

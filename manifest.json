@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "FORGOR",
-    "version": "1.0",
+    "version": "0.0.0.1",
     "description": "Search through your saved data!",
     "action": {
         "default_title": "Context Menu Extension",
@@ -18,8 +18,7 @@
         "storage",
         "activeTab",
         "scripting",
-        "contextMenus",
-        "webNavigation"
+        "contextMenus"
     ],
     "host_permissions": [
         "<all_urls>"
@@ -39,7 +38,8 @@
         {
             "matches": ["<all_urls>"],
             "exclude_matches": ["https://forgor.space/app/*"],
-            "js": ["content.js"]
+            "js": ["content.js"],
+            "run_at": "document_idle"
         }
     ],
     "web_accessible_resources": [

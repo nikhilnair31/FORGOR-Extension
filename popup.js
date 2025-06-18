@@ -1,3 +1,5 @@
+// popup.js
+
 const { API_BASE, WEBSITE_URL, USER_AGENT, APP_KEY } = CONFIG;
     
 document.getElementById('searchButton').addEventListener('click', function() {
@@ -6,6 +8,12 @@ document.getElementById('searchButton').addEventListener('click', function() {
 
 document.getElementById("edit-shortcut").addEventListener("click", () => {
     chrome.tabs.create({ url: "chrome://extensions/shortcuts" });
+});
+
+document.getElementById('indexContentButton').addEventListener('click', function () {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        chrome.tabs.sendMessage(tabs[0].id, { type: 'index-posts' });
+    });
 });
 
 document.addEventListener('DOMContentLoaded', function() {
