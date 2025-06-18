@@ -6,7 +6,7 @@ let notificationTimer;
 
 chrome.runtime.onInstalled.addListener((details) => {
     // Show login page if the extension is installed for the first time
-    if (details.reason === "install") { // install or update
+    if (details.reason === "update") { // install or update
         chrome.tabs.create({
             url: "login.html"
         });
@@ -106,7 +106,7 @@ async function sendToForgor_Html(html, url, timestamp) {
         formData.append("url", url);
         formData.append("timestamp", timestamp.toString());
 
-        const response = await fetch(`${CONFIG.API_BASE}/api/index`, {
+        const response = await fetch(`${CONFIG.API_BASE}/api/upload/html`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
@@ -276,6 +276,41 @@ async function sendToForgor_ImgUrl(data) {
 }
 async function sendToForgor_Txt(data) {
     console.log(`sendToForgor_Txt: ${JSON.stringify(data)}`);
+
+    const tokens = await new Promise((resolve) =>
+        chrome.storage.local.get(['access_token'], resolve)
+    );
+    const accessToken = tokens.access_token;
+
+    try {
+        const formData = new FormData();
+        formData.append("text", data.text);
+        formData.append("post_url", data.url);  // page the image came from
+
+        const response = await fetch(`${CONFIG.API_BASE}/api/upload/text`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'User-Agent': CONFIG.USER_AGENT,
+                'X-App-Key': CONFIG.APP_KEY,
+            },
+            body: formData,
+        });
+
+        if (response.ok) {
+            const responseText = await response.text();
+            console.log(`API response: ${responseText}`);
+            showToast('SELECTED TEXT SAVED');
+        } else {
+            const errorText = await response.text();
+            console.error(`API request failed with status ${response.status}: ${errorText}`);
+            showToast('FAILED TO SAVE SELECTED TEXT');
+        }
+    }
+    catch (error) {
+        console.error('Error sending selected text to API:', error);
+        showToast('ERROR');
+    }
 }
 
 function showToast(content) {
