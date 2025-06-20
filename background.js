@@ -1,6 +1,6 @@
 // background.js
 
-importScripts('config.js');
+import CONFIG from './config.js';
 
 let notificationTimer;
 
@@ -60,7 +60,7 @@ async function searchToServer(content) {
     const accessToken = tokens.access_token;
 
     try {
-        const response = await fetch(`${CONFIG.API_BASE}/api/check`, {
+        const response = await fetch(`${CONFIG.SERVER_URL}/api/check`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -106,7 +106,7 @@ async function sendToForgor_Html(html, url, timestamp) {
         formData.append("url", url);
         formData.append("timestamp", timestamp.toString());
 
-        const response = await fetch(`${CONFIG.API_BASE}/api/upload/html`, {
+        const response = await fetch(`${CONFIG.SERVER_URL}/api/upload/html`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
@@ -212,7 +212,7 @@ async function sendToForgor_Url(data) {
         const formData = new FormData();
         formData.append("url", data.url);
 
-        const response = await fetch(`${CONFIG.API_BASE}/api/upload/url`, {
+        const response = await fetch(`${CONFIG.SERVER_URL}/api/upload/url`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
@@ -249,7 +249,7 @@ async function sendToForgor_ImgUrl(data) {
         formData.append("image_url", data.imageUrl);
         formData.append("post_url", data.url);  // page the image came from
 
-        const response = await fetch(`${CONFIG.API_BASE}/api/upload/imageurl`, {
+        const response = await fetch(`${CONFIG.SERVER_URL}/api/upload/imageurl`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
@@ -287,7 +287,7 @@ async function sendToForgor_Txt(data) {
         formData.append("text", data.text);
         formData.append("post_url", data.url);  // page the image came from
 
-        const response = await fetch(`${CONFIG.API_BASE}/api/upload/text`, {
+        const response = await fetch(`${CONFIG.SERVER_URL}/api/upload/text`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${accessToken}`,

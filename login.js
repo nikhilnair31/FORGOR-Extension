@@ -1,3 +1,7 @@
+// login.js
+
+import CONFIG from './config.js';
+
 // === Form Tab Switching ===
 document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
@@ -31,7 +35,7 @@ async function loginUser(username, password) {
     try {
         console.log(`Logging in with username: ${username} and password: ${password}`);
         
-        const res = await fetch(`${CONFIG.API_BASE}/api/login`, {
+        const res = await fetch(`${CONFIG.SERVER_URL}/api/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -88,7 +92,7 @@ document.getElementById('register-button').addEventListener('click', () => {
 });
 async function registerUser(username, password) {
     try {
-        const res = await fetch(`${CONFIG.API_BASE}/api/register`, {
+        const res = await fetch(`${CONFIG.SERVER_URL}/api/register`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -117,7 +121,7 @@ async function registerUser(username, password) {
 // === Other ===
 async function refreshAccessToken(refresh_token) {
     try {
-        const res = await fetch(`${API_BASE}/api/refresh_token`, {
+        const res = await fetch(`${SERVER_URL}/api/refresh_token`, {
             method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

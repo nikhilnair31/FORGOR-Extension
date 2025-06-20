@@ -1,6 +1,6 @@
 // popup.js
 
-const { API_BASE, WEBSITE_URL, USER_AGENT, APP_KEY } = CONFIG;
+const { SERVER_URL, WEBSITE_URL, USER_AGENT, APP_KEY } = CONFIG;
     
 document.getElementById('searchButton').addEventListener('click', function() {
     window.open(WEBSITE_URL, '_blank');

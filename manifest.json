@@ -24,7 +24,8 @@
         "<all_urls>"
     ],
     "background": {
-        "service_worker": "background.js"
+        "service_worker": "background.js",
+        "type": "module"
     },
     "commands": {
         "save_to_app": {
@@ -50,7 +51,7 @@
     ],
     "web_accessible_resources": [
         {
-            "resources": ["toast.html", "assets/fonts/venus_cormier.otf"],
+            "resources": ["config.js", "toast.html", "assets/fonts/venus_cormier.otf"],
             "matches": ["<all_urls>"]
         }
     ],
