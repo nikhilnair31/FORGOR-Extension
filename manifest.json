@@ -1,24 +1,16 @@
 {
     "manifest_version": 3,
     "name": "FORGOR",
-    "version": "0.0.1",
-    "description": "Search through your saved data!",
+    "version": "0.1.0",
+    "description": "Shows related images based on your current tab's title and domain.",
     "action": {
-        "default_title": "Context Menu Extension",
-        "default_popup": "popup.html",
-        "default_icon": {
-            "16": "images/icon16.png",
-            "32": "images/icon32.png",
-            "48": "images/icon48.png",
-            "128": "images/icon128.png"
-        }
+        "default_title": "FORGOR"
     },
     "permissions": [
-        "tabs",
         "storage",
+        "tabs",
         "activeTab",
-        "scripting",
-        "contextMenus"
+        "sidePanel"
     ],
     "host_permissions": [
         "<all_urls>"
@@ -27,38 +19,12 @@
         "service_worker": "background.js",
         "type": "module"
     },
-    "commands": {
-        "save_to_app": {
-            "suggested_key": {
-                "default": "Ctrl+Shift+F"
-            },
-            "description": "SAVE TO FORGOR"
-        },
-        "index_site_posts": {
-            "suggested_key": {
-                "default": "Ctrl+Shift+X"
-            },
-            "description": "INDEX ALL POSTS"
-        }
+    "side_panel": {
+        "default_path": "sidepanel.html"
     },
-    "content_scripts": [
-        {
-            "matches": ["<all_urls>"],
-            "exclude_matches": ["https://forgor.space/app/*"],
-            "js": ["content.js"],
-            "run_at": "document_idle"
-        }
-    ],
-    "web_accessible_resources": [
-        {
-            "resources": ["config.js", "toast.html", "assets/fonts/venus_cormier.otf"],
-            "matches": ["<all_urls>"]
-        }
-    ],
     "icons": {
-        "16": "images/icon16.png",
-        "32": "images/icon32.png",
-        "48": "images/icon48.png",
-        "128": "images/icon128.png"
+        "16": "images/icon16_1.png",
+        "32": "images/icon32_1.png",
+        "128": "images/icon128_1.png"
     }
 }

@@ -1,148 +1,69 @@
-// login.js
+import { SERVER_URL, APP_KEY, USER_AGENT } from "./config.js";
 
-import CONFIG from './config.js';
+const EP = {
+    LOGIN:    `${SERVER_URL}/api/login`,
+    REGISTER: `${SERVER_URL}/api/register`
+};
 
-// === Form Tab Switching ===
-document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        // Update active tab
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
+const form = document.getElementById("authForm");
+const statusEl = document.getElementById("status");
 
-        // Show corresponding form
-        const target = tab.getAttribute('data-target');
-        document.querySelectorAll('.form').forEach(f => f.classList.remove('active'));
-        document.getElementById(target).classList.add('active');
-    });
-});
+form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    statusEl.textContent = ""; statusEl.className = "";
 
-// === Login ===
-document.getElementById('login-button').addEventListener('click', () => {
-    const username = document.getElementById('login-username').value;
-    const password = document.getElementById('login-password').value;
+    const username = document.getElementById("username").value.trim();
+    const email    = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+    const mode     = document.getElementById("mode").value;
 
-    loginUser(username, password).then(response => {
-        if (response.status === 'success') {
-            console.log("Logged in successfully!");
-            window.close();
-        } 
-        else {
-            console.log(response.message);
-        }
-    });
-});
-async function loginUser(username, password) {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    const url = mode === "login" ? EP.LOGIN : EP.REGISTER;
+
     try {
-        console.log(`Logging in with username: ${username} and password: ${password}`);
-        
-        const res = await fetch(`${CONFIG.SERVER_URL}/api/login`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'User-Agent': CONFIG.USER_AGENT,
-                'X-App-Key': CONFIG.APP_KEY,
-            },
-            body: JSON.stringify({ username, password }),
-        });
-
-        console.log(`Response status: ${JSON.stringify(res)}`);
-
-        const data = await res.json();
-        if (res.ok) {
-            await chrome.storage.local.set({
-                username: username,
-                access_token: data.access_token,
-                refresh_token: data.refresh_token,
-            });
-            return { status: 'success' };
-        } 
-        else {
-            return { status: 'error', message: data.message };
-        }
-    } 
-    catch (err) {
-        return { status: 'error', message: 'Network error' };
-    }
-}
-
-// === Register ===
-document.getElementById('register-button').addEventListener('click', () => {
-    const username = document.getElementById('register-username').value;
-    const password = document.getElementById('register-password').value;
-    console.log(`Registering with username: ${username} and password: ${password}`);
-
-    registerUser(username, password).then(response => {
-        if (response.status === 'success') {
-            console.log("Registered successfully!");
-            
-            loginUser(username, password).then(response => {
-                if (response.status === 'success') {
-                    console.log("Logged in successfully!");
-                    window.close();
-                } 
-                else {
-                    console.log(response.message);
-                }
-            });
-        } 
-        else {
-            console.log(response.message);
-        }
-    });
-});
-async function registerUser(username, password) {
-    try {
-        const res = await fetch(`${CONFIG.SERVER_URL}/api/register`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'User-Agent': CONFIG.USER_AGENT,
-                'X-App-Key': CONFIG.APP_KEY,
-            },
-            body: JSON.stringify({ username, password }),
-        });
-
-        const data = await res.json();
-        if (res.ok) {
-            await chrome.storage.local.set({
-                username: username,
-            });
-            return { status: 'success' };
-        } 
-        else {
-            return { status: 'error', message: data.message };
-        }
-    } 
-    catch (err) {
-        return { status: 'error', message: 'Network error' };
-    }
-}
-
-// === Other ===
-async function refreshAccessToken(refresh_token) {
-    try {
-        const res = await fetch(`${SERVER_URL}/api/refresh_token`, {
-            method: 'POST',
+        // Sign up first, then log in (server does this in Android helper too)
+        if (mode === "signup") {
+            const reg = await fetch(url, {
+                method: "POST",
                 headers: {
-                    'Content-Type': 'application/json',
-                    'User-Agent': USER_AGENT,
-                    'X-App-Key': APP_KEY,
+                "Content-Type": "application/json",
+                "User-Agent": USER_AGENT,
+                "X-App-Key": APP_KEY
                 },
-            body: JSON.stringify({ refresh_token }),
+                body: JSON.stringify({ username, email, password, timezone: tz })
+            });
+            if (!reg.ok) throw new Error(`Register failed (${reg.status})`);
+        }
+
+        const res = await fetch(EP.LOGIN, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "User-Agent": USER_AGENT,
+                "X-App-Key": APP_KEY,
+                "X-Timezone": tz
+            },
+            body: JSON.stringify({ username, email, password })
         });
 
-        const data = await res.json();
-        if (res.ok) {
-            await chrome.storage.local.set({ 
-                access_token: data.access_token 
-            });
-            return { status: 'success', access_token: data.access_token };
-        } 
-        else {
-            return { status: 'error', message: data.message };
-        }
-    } 
-    catch (err) {
-        return { status: 'error', message: 'Network error' };
+        const txt = await res.text();
+        if (!res.ok) throw new Error(txt || `Login failed (${res.status})`);
+        const data = JSON.parse(txt);
+        console.log(`data ${data}`);
+
+        const access = data?.access_token;
+        const refresh = data?.refresh_token;
+        if (!access || !refresh) throw new Error("Tokens missing");
+        console.log(`access ${access}`);
+        console.log(`refresh ${refresh}`);
+
+        await chrome.storage.sync.set({ access_token: access, refresh_token: refresh });
+
+        statusEl.textContent = "Success! You can close this tab.";
+        statusEl.className = "ok";
+        setTimeout(() => window.close(), 700);
+    } catch (err) {
+        statusEl.textContent = err?.message || "Request failed";
+        statusEl.className = "error";
     }
-}
+});

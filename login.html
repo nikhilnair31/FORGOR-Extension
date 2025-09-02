@@ -1,182 +1,45 @@
-<!-- login.html -->
-
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Login / Register</title>
-    <style>
-        :root {
-            --accent-0: #deff96;
-            --accent-1: #7654b1;
-            --base-0: hsl(248, 22%, 14%);
-            --base-1: #221f31;
-            --white: #FFFFFF;
-        }
-
-        @font-face {
-            font-family: 'venus_cormier';
-            src: url('/assets/fonts/venus_cormier.otf') format('opentype');
-            font-weight: normal;
-            font-style: normal;
-        }
-
-        body {
-            font-family: 'venus_cormier', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: var(--base-0);
-            margin: 0;
-            padding: 0;
-            color: var(--white);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-        }
-
-        .container {
-            width: 310px;
-            background: var(--base-1);
-            padding: 20px;
-            border-radius: 0;
-            display: flex;
-            left: 20px;
-            position: fixed;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        h3 {
-            color: var(--accent-0);
-            text-align: right;
-            margin: 0px;
-            font-size: 64px;
-            font-weight: bold;
-        }
-
-        .tabs {
-            display: flex;
-            width: 100%;
-            justify-content: center;
-            flex-direction: row;
-            flex-wrap: nowrap;
-            align-content: center;
-            align-items: center;
-        }
-
-        .tab {
-            flex: 1;
-            text-align: center;
-            padding: 16px;
-            cursor: pointer;
-            background-color: var(--accent-2);
-            color: white;
-            font-weight: bold;
-            font-size: small;
-            border: none;
-        }
-
-        .tab.active {
-            background-color: var(--accent-0);
-            color: var(--accent-1);
-        }
-
-        .form {
-            display: none;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .form.active {
-            display: flex;
-        }
-
-        input {
-            font-family: 'venus_cormier', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            padding: 16px;
-            font-size: small;
-            border: none;
-            outline: none;
-            border-radius: 0;
-            background-color: var(--base-0);
-            color: var(--white);
-        }
-
-        button {
-            font-family: 'venus_cormier', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            padding: 16px;
-            background-color: var(--accent-1);
-            color: white;
-            border: none;
-            border-radius: 0;
-            font-size: small;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        button:hover {
-            background-color: var(--accent-2);
-        }
-
-        h2 {
-            color: var(--accent-0);
-            margin: 0;
-            font-size: 18px;
-            text-align: center;
-        }
-
-        /* Arrow overlay */
-        .pin-reminder {
-            position: fixed;
-            top: 20px;
-            right: 40px;
-            text-align: center;
-            color: var(--white);
-            font-size: 12px;
-        }
-
-        .pin-arrow {
-            width: 20px;
-            height: 20px;
-            border-left: 5px solid var(--accent-0);
-            border-bottom: 5px solid var(--accent-0);
-            transform: rotate(135deg);
-            margin: 5px auto 0;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <title>Sign in to BuildMode</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; }
+    form { display: grid; gap: 10px; max-width: 360px; }
+    input, button, select { padding: 10px; font-size: 14px; }
+    .row { display: grid; gap: 6px; }
+    .error { color: #b91c1c; }
+    .ok { color: #065f46; }
+  </style>
 </head>
 <body>
-    <div class="pin-reminder">
-        <div class="pin-arrow"></div>
-        <br>
-        PIN THE EXTENSION
+  <h2>Welcome</h2>
+  <p>Log in or create an account to enable the extension.</p>
+
+  <form id="authForm">
+    <div class="row">
+      <label>Username</label>
+      <input id="username" required placeholder="username">
     </div>
-
-    <div class="container">
-        <h3>
-            <img src="assets/icon.png" alt="Icon" style="width: 48px; height: 48px; vertical-align: middle; margin-right: 8px;">
-            FORGOR
-        </h3>
-
-        <div class="tabs">
-            <div class="tab active" data-target="login-form">LOGIN</div>
-            <div class="tab" data-target="register-form">REGISTER</div>
-        </div>
-
-        <div id="login-form" class="form active">
-            <input type="text" placeholder="USERNAME" id="login-username" autocomplete="username">
-            <input type="password" placeholder="PASSWORD" id="login-password" autocomplete="current-password">
-            <button id="login-button">LOGIN</button>
-        </div>
-
-        <div id="register-form" class="form">
-            <input type="text" placeholder="PICK USERNAME" id="register-username" autocomplete="username">
-            <input type="password" placeholder="PICK PASSWORD" id="register-password" autocomplete="new-password">
-            <button id="register-button">REGISTER</button>
-        </div>
+    <div class="row">
+      <label>Email</label>
+      <input id="email" type="email" required placeholder="you@example.com">
     </div>
+    <div class="row">
+      <label>Password</label>
+      <input id="password" type="password" required placeholder="••••••••">
+    </div>
+    <div class="row">
+      <label>Action</label>
+      <select id="mode">
+        <option value="login">Log in</option>
+        <option value="signup">Sign up</option>
+      </select>
+    </div>
+    <button type="submit">Continue</button>
+    <div id="status"></div>
+  </form>
 
-    <script type="module" src="config.js"></script>
-    <script type="module" src="login.js"></script>
+  <script type="module" src="login.js"></script>
 </body>
 </html>

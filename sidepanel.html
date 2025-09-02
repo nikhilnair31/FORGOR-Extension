@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Related Images</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin: 0; font-family: system-ui, sans-serif; }
+    header { position: sticky; top: 0; background: inherit; padding: 12px 14px; border-bottom: 1px solid rgba(0,0,0,.1); z-index: 1; background-color: black; }
+    #meta { font-size: 12px; color: #666; margin-top: 4px; word-break: break-word; }
+    #grid { display: grid; grid-template-columns: 1fr; gap: 8px; padding: 12px; }
+    .card { border: 1px solid rgba(0,0,0,.12); border-radius: 10px; overflow: hidden; }
+    .thumb { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; }
+    .caption { font-size: 12px; padding: 8px 10px; color: #444; }
+    .empty { padding: 16px; color: #666; text-align: center; }
+    button.refresh { padding: 8px 10px; font-size: 13px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <header>
+    <div><strong>Related Images</strong></div>
+    <div id="meta"></div>
+    <div style="margin-top:8px;"><button class="refresh" id="refreshBtn">Refresh</button></div>
+  </header>
+  <main id="grid"></main>
+  <script type="module" src="sidepanel.js"></script>
+</body>
+</html>
