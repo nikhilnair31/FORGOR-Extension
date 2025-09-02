@@ -95,10 +95,13 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 // ---- Click toolbar: open side panel ----
 chrome.action.onClicked.addListener((tab) => {
     console.log("[BG] Toolbar icon clicked");
-    chrome.sidePanel.setOptions({ path: "sidepanel.html", enabled: true }, () => {
+    chrome.sidePanel.setOptions({ path: "sidepanel.html", enabled: true }, async () => {
         console.log("[BG] sidePanel.setOptions done");
-        chrome.sidePanel.open({ windowId: tab.windowId });
+        await chrome.sidePanel.open({ windowId: tab.windowId });
         console.log("[BG] sidePanel.open called");
+
+        // Clear badge when panel is opened
+        await clearBadge();
     });
 });
 
