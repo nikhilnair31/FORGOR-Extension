@@ -1,45 +1,74 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="utf-8" />
-  <title>Sign in to BuildMode</title>
-  <style>
-    body { font-family: system-ui, sans-serif; margin: 24px; }
-    form { display: grid; gap: 10px; max-width: 360px; }
-    input, button, select { padding: 10px; font-size: 14px; }
-    .row { display: grid; gap: 6px; }
-    .error { color: #b91c1c; }
-    .ok { color: #065f46; }
-  </style>
-</head>
-<body>
-  <h2>Welcome</h2>
-  <p>Log in or create an account to enable the extension.</p>
+    <head>
+        <meta charset="utf-8" />
+        <title>Sign in to BuildMode</title>
+        <style>
+            @font-face {
+                font-family: "VenusCormier";
+                src: url("assets/fonts/venus_cormier.otf") format("opentype");
+                font-weight: normal;
+                font-style: normal;
+            }
+            :root { 
+                color-scheme: dark; 
+                --base-0: #1e1c2c;
+                --base-1: #221f31;
+                --base-2: #7b7889;
+                --accent-0: #deff96;
+                --accent-0x: #ECFFCF;
+                --accent-1: #A67BF2;
+                --accent-1t: #337553B0;
+            }
+            body { 
+                margin: 0; 
+                font-family: "VenusCormier", system-ui, sans-serif;
+                background: var(--base-0);
+                color: var(--base-2);
+            }
+            form { display: grid; gap: 10px; max-width: 360px; }
+            input, select { 
+                padding: 10px; font-size: 14px; 
+                background: var(--base-0);
+            }
+            button { 
+                padding: 10px; font-size: 14px; 
+                background: var(--accent-0);
+                color: var(--base-0);
+            }
+            .row { display: grid; gap: 6px; }
+            .error { color: #b91c1c; }
+            .ok { color: #065f46; }
+        </style>
+    </head>
+    <body>
+    <h2>WELCOME TO FORGOR</h2>
+    <p>Log in or create an account to enable the extension.</p>
 
-  <form id="authForm">
-    <div class="row">
-      <label>Username</label>
-      <input id="username" required placeholder="username">
-    </div>
-    <div class="row">
-      <label>Email</label>
-      <input id="email" type="email" required placeholder="you@example.com">
-    </div>
-    <div class="row">
-      <label>Password</label>
-      <input id="password" type="password" required placeholder="••••••••">
-    </div>
-    <div class="row">
-      <label>Action</label>
-      <select id="mode">
-        <option value="login">Log in</option>
-        <option value="signup">Sign up</option>
-      </select>
-    </div>
-    <button type="submit">Continue</button>
-    <div id="status"></div>
-  </form>
+    <form id="authForm">
+        <div class="row">
+        <label>USERNAME</label>
+        <input id="username" required placeholder="username">
+        </div>
+        <div class="row">
+        <label>EMAIL</label>
+        <input id="email" type="email" required placeholder="you@example.com">
+        </div>
+        <div class="row">
+        <label>PASSWORD</label>
+        <input id="password" type="password" required placeholder="••••••••">
+        </div>
+        <div class="row">
+        <label>ACTION</label>
+        <select id="mode">
+            <option value="login">Log in</option>
+            <option value="signup">Sign up</option>
+        </select>
+        </div>
+        <button type="submit">Continue</button>
+        <div id="status"></div>
+    </form>
 
-  <script type="module" src="login.js"></script>
-</body>
+    <script type="module" src="login.js"></script>
+    </body>
 </html>

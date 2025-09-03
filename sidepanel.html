@@ -6,6 +6,12 @@
         <meta charset="utf-8" />
         <title>Related Images</title>
         <style>
+            @font-face {
+                font-family: "VenusCormier";
+                src: url("assets/fonts/venus_cormier.otf") format("opentype");
+                font-weight: normal;
+                font-style: normal;
+            }
             :root { 
                 color-scheme: dark; 
                 --base-0: #1e1c2c;
@@ -18,9 +24,9 @@
             }
             body { 
                 margin: 0; 
-                font-family: system-ui, sans-serif; 
+                font-family: "VenusCormier", system-ui, sans-serif;
                 background: var(--base-0);
-                color: var(--base-2);
+                color: white;
             }
             header { 
                 position: sticky; 

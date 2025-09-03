@@ -4,10 +4,7 @@
 
 ### To-Do
 
-- [ ] Context menu options
-    - Take screenshot and upload
-    - Upoad image hover over
-    - Find similar to view
+- [ ] Context menu option to find similar to view
 - [ ] Improve buffer system to avoid constant suggestions
 - [ ] Improve login UI
 - [ ] Account for access/refresh token expiration
@@ -18,6 +15,8 @@
 
 ### Done
 
+- [x] Context menu option to take screenshot and upload
+- [x] Context menu option to upload image hover over
 - [x] Save check results and use that when sidebar opened
 - [x] Refresh sidebar output when it's open and user clicks on icon
 - [x] Remove deleted post from sidebar list
