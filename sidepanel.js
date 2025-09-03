@@ -249,7 +249,7 @@ function setPlaceholder(img, alt = "Image unavailable") {
 async function renderSequential(items) {
     gridEl.innerHTML = "";
     for (const it of items) {
-        console.log(`it: ${JSON.stringify{it}}`);
+        console.log(`it: ${JSON.stringify(it)}`);
         
         const card = document.createElement("div");
         card.className = "card";
@@ -334,13 +334,13 @@ async function loadImageWithAuth(url) {
     return URL.createObjectURL(blob);
 }
 
-// ---------------------- Initial ----------------------
+// ---------------------- Loading ----------------------
 
 chrome.runtime.onMessage.addListener((msg) => {
     if (msg?.type === "REFRESH_IF_OPEN") {
         // If our DOM exists, we assume we're open—do a light refresh
         if (document.visibilityState === "visible") {
-        loadImages(true);
+            loadImages(true);
         }
     }
 });
@@ -362,8 +362,8 @@ async function loadImages(spin = false) {
     try {
         // Ask background for cached-or-fetch
         const res = await chrome.runtime.sendMessage({
-        type: "QUERY_CACHED_OR_FETCH",
-        searchText
+            type: "QUERY_CACHED_OR_FETCH",
+            searchText
         });
         if (!res?.ok) throw new Error("Query failed");
 
