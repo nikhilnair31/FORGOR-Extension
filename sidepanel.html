@@ -5,68 +5,95 @@
         <title>Related Images</title>
         <style>
             :root { 
-                color-scheme: light dark; 
+                color-scheme: dark; 
+                --base-0: #1e1c2c;
+                --base-1: #221f31;
+                --base-2: #7b7889;
+                --accent-0: #deff96;
+                --accent-0x: #ECFFCF;
+                --accent-1: #A67BF2;
+                --accent-1t: #337553B0;
             }
             body { 
-                margin: 0; font-family: system-ui, sans-serif; 
+                margin: 0; 
+                font-family: system-ui, sans-serif; 
+                background: var(--base-0);
+                color: var(--base-2);
             }
             header { 
-                position: sticky; top: 0; background: inherit; padding: 12px 14px; border-bottom: 1px solid rgba(0,0,0,.1); z-index: 1; background-color: black; 
+                position: sticky; 
+                top: 0; 
+                padding: 12px 14px; 
+                z-index: 1; 
+                background-color: var(--base-1);
             }
             #meta { 
-                font-size: 12px; color: #666; margin-top: 4px; word-break: break-word; 
+                font-size: 12px; 
+                color: var(--base-2); 
+                margin-top: 4px; 
+                word-break: break-word; 
             }
             .card { 
-                border: 1px solid rgba(0,0,0,.12); border-radius: 0px; overflow: hidden; 
+                border: 1px solid rgba(255,255,255,.1); 
+                border-radius: 0;      /* <-- HARSH corners */
+                overflow: hidden; 
             }
             .thumb { 
-                width: 100%; object-fit: cover; display: block; 
+                width: 100%; 
+                object-fit: cover; 
+                display: block; 
+                cursor: zoom-in;
             }
             .caption { 
-                font-size: 12px; padding: 8px 10px; color: #444; 
+                font-size: 12px; 
+                padding: 8px 10px; 
+                color: var(--base-2); 
+                background: var(--base-1);
             }
             .empty { 
-                padding: 16px; color: #666; text-align: center; 
+                padding: 16px; 
+                color: var(--base-2); 
+                text-align: center; 
             }
             button.refresh { 
-                padding: 8px 10px; font-size: 13px; cursor: pointer; 
+                padding: 8px 10px; 
+                font-size: 13px; 
+                cursor: pointer; 
+                background: var(--accent-1t);
+                border: none;
+                border-radius: 0;   /* <-- HARSH corners */
+                color: var(--accent-0x);
             }
-            
+
             html { scrollbar-gutter: stable; }
 
-            /* add to your existing <style> */
+            /* placeholder styling */
             .thumb[data-placeholder="1"] {
-            filter: grayscale(0.1) contrast(0.95);
+                filter: grayscale(0.1) contrast(0.95);
             }
 
-            /* Masonry layout via CSS columns */
+            #app_title {
+                font-size: x-large;
+                color: var(--accent-0);
+            }
+
+            /* Masonry layout */
             #grid {
-            column-width: 260px;     /* target column width; browser decides count */
-            column-gap: 12px;
-            padding: 12px;
+                column-width: 260px;
+                column-gap: 12px;
+                padding: 12px;
             }
-
-            /* Each card is a column "brick" */
             .card {
-            display: inline-block;   /* needed so items flow inside columns */
-            width: 100%;
-            margin: 0 0 12px;
-            border: 1px solid rgba(0,0,0,.12);
-            border-radius: 8px;
-            overflow: hidden;
-            break-inside: avoid;     /* prevent splits across columns */
+                display: inline-block;
+                width: 100%;
+                margin: 0 0 12px;
+                border: 1px solid rgba(255,255,255,.12);
+                border-radius: 0;   /* <-- HARSH corners */
+                overflow: hidden;
+                break-inside: avoid;
             }
 
-            /* Natural-height images (no fixed aspect ratio) */
-            .thumb {
-            display: block;
-            width: 100%;
-            height: auto;
-            object-fit: cover;       /* keeps nice cropping if any intrinsic weirdness */
-            cursor: zoom-in;
-            }
-
-            /* Optional: responsive tweaks */
+            /* responsive */
             @media (max-width: 900px)  { #grid { column-width: 220px; } }
             @media (max-width: 600px)  { #grid { column-width: 180px; } }
 
@@ -75,22 +102,20 @@
                 position: fixed;
                 inset: 0;
                 background: rgba(0,0,0,.7);
-                display: none;           /* toggled to flex when opened */
+                display: none;
                 align-items: center;
                 justify-content: center;
                 z-index: 1000;
             }
-            .overlay.open { 
-                display: flex; 
-            }
+            .overlay.open { display: flex; }
 
             .lightbox {
                 position: relative;
                 max-width: 95vw;
                 max-height: 90vh;
                 outline: 1px solid rgba(255,255,255,.15);
-                background: #000;
-                border-radius: 10px;
+                background: var(--base-1);
+                border-radius: 0;   /* <-- HARSH corners */
                 overflow: hidden;
                 box-shadow: 0 10px 40px rgba(0,0,0,.5);
             }
@@ -101,37 +126,34 @@
                 width: auto;
                 height: auto;
                 object-fit: contain;
-                background: #000;
+                background: var(--base-0);
             }
             .close-btn {
                 position: absolute;
                 top: 8px;
                 right: 8px;
                 border: none;
-                background: rgba(0,0,0,.6);
-                color: #fff;
+                background: var(--base-0);
+                color: var(--accent-0x);
                 font: 600 14px system-ui, sans-serif;
                 padding: 8px 10px;
-                border-radius: 8px;
+                border-radius: 0;   /* <-- HARSH corners */
                 cursor: pointer;
             }
             .close-btn:focus-visible { 
-                outline: 2px solid #4da3ff; 
-            }
-            .thumb { 
-                cursor: zoom-in; 
+                color: var(--accent-1);
             }
         </style>
     </head>
     <body>
         <header>
-            <div><strong>Related Images</strong></div>
+            <div id="app_title"><strong>FORGOR</strong></div>
             <div id="meta"></div>
         </header>
         <main id="grid"></main>
         <div id="overlay" class="overlay" aria-hidden="true">
             <div class="lightbox" role="dialog" aria-modal="true" aria-label="Image preview">
-                <button class="close-btn" id="closeBtn" type="button">Close</button>
+                <button class="close-btn" id="closeBtn" type="button">CLOSE</button>
                 <img class="fullimg" id="fullImg" alt="" />
             </div>
         </div>

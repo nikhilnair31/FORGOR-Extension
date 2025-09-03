@@ -8,7 +8,6 @@ const EP = {
     THUMBNAIL: `${SERVER_URL}/api/get_thumbnail`,
 };
 
-const metaEl = document.getElementById("meta");
 const gridEl = document.getElementById("grid");
 
 // ----- Lightbox helpers -----
@@ -76,10 +75,6 @@ async function getTokens() {
 async function getActiveTab() {
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   return tabs[0] || null;
-}
-
-function setMeta(title, domain) {
-  metaEl.textContent = title && domain ? `${title} — ${domain}` : (title || domain || "");
 }
 
 // ---- Placeholder utils ----
@@ -171,12 +166,14 @@ function render(items) {
 
 async function loadImages(spin = false) {
     const tab = await getActiveTab();
-    if (!tab?.url) { setMeta("", ""); render([]); return; }
+    if (!tab?.url) { 
+        render([]); 
+        return; 
+    }
     console.log(`[SP] tab.url: ${tab.url}`);
 
     const title = tab.title || "";
     let domain = ""; try { domain = new URL(tab.url).hostname || ""; } catch {}
-    setMeta(title, domain);
     console.log(`[SP] title: ${title} - domain: ${domain}`);
 
     if (spin) gridEl.innerHTML = `<div class="empty">Loading…</div>`;
