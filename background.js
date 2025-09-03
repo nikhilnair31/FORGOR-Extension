@@ -1,3 +1,5 @@
+// background.js
+
 import { SERVER_URL, APP_KEY, USER_AGENT } from "./config.js";
 
 // ---- Endpoints from your Android Helpers ----
@@ -8,6 +10,63 @@ const EP = {
   QUERY:        `${SERVER_URL}/api/check`,           // accepts { "searchText": "..." }
   GET_SAVES:    `${SERVER_URL}/api/get_saves_left`   // optional usage
 };
+
+// ==================== Batch Buffer (5s quiet window) ====================
+const FLUSH_MS = 1000; // 5 seconds of no new actions -> flush
+let actionBuffer = []; // [{title, domain, tabId, ts}]
+let flushTimer = null;
+
+// Push a user action into the buffer and (re)start the flush timer
+function queueUserAction(entry) {
+  actionBuffer.push({
+    title: (entry?.title || "").trim(),
+    domain: (entry?.domain || "").trim(),
+    tabId: entry?.tabId ?? null,
+    ts: Date.now()
+  });
+  scheduleFlush();
+}
+
+function scheduleFlush() {
+  if (flushTimer) clearTimeout(flushTimer);
+  flushTimer = setTimeout(flushActions, FLUSH_MS);
+}
+
+async function flushActions() {
+  flushTimer = null;
+  const batch = actionBuffer.splice(0);
+  if (!batch.length) return;
+
+  // Build a batched search string: unique "title + domain" combos
+  const parts = Array.from(
+    new Set(
+      batch
+        .map(it => `${it.title} ${it.domain}`.trim())
+        .filter(Boolean)
+    )
+  );
+
+  // If nothing useful, just clear the badge and bail
+  if (!parts.length) {
+    await clearBadge();
+    return;
+  }
+
+  const batchedSearchText = parts.join(" || ");
+
+  try {
+    const has = await hasResultsFor(batchedSearchText);
+    if (has) {
+      await chrome.action.setBadgeText({ text: "●" });
+      await chrome.action.setBadgeBackgroundColor({ color: "#3b82f6" });
+    } else {
+      await clearBadge();
+    }
+  } catch (err) {
+    console.error("[BG] flushActions error", err);
+    await clearBadge();
+  }
+}
 
 // ---- Storage helpers ----
 const store = {
@@ -105,10 +164,31 @@ chrome.action.onClicked.addListener((tab) => {
     });
 });
 
-// ---- Badge updates from active tab ----
-chrome.tabs.onActivated.addListener(({ tabId }) => refreshBadgeForActive());
-chrome.tabs.onUpdated.addListener((tabId, info) => {
-  if (info.status === "complete" || info.title || info.url) refreshBadgeForActive();
+// ---- Event wiring: route into the buffer instead of direct fetch ----
+chrome.tabs.onActivated.addListener(async ({ tabId }) => {
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    if (!tab?.url) { queueUserAction({ title: "", domain: "", tabId }); return; }
+    let domain = ""; try { domain = new URL(tab.url).hostname; } catch {}
+    queueUserAction({ title: tab.title || "", domain, tabId });
+  } catch (e) {
+    console.warn("[BG] onActivated get error", e);
+    queueUserAction({ title: "", domain: "", tabId });
+  }
+});
+
+chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
+  // We’ll buffer on common “content is ready or changed” signals:
+  if (!(info.status === "complete" || "title" in info || "url" in info)) return;
+
+  let domain = "";
+  try { if (tab?.url) domain = new URL(tab.url).hostname; } catch {}
+
+  queueUserAction({
+    title: (tab?.title || ""),
+    domain,
+    tabId
+  });
 });
 
 async function refreshBadgeForActive() {

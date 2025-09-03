@@ -1,6 +1,12 @@
+// sidepanel.js
+
 import { SERVER_URL, APP_KEY, USER_AGENT } from "./config.js";
 
-const EP = { QUERY: `${SERVER_URL}/api/check` };
+const EP = { 
+    QUERY: `${SERVER_URL}/api/check`,
+    FILE: `${SERVER_URL}/api/get_file`,
+    THUMBNAIL: `${SERVER_URL}/api/get_thumbnail`,
+};
 
 const metaEl = document.getElementById("meta");
 const gridEl = document.getElementById("grid");
@@ -29,10 +35,12 @@ function closeLightbox() {
 
 // Close interactions
 closeBtnEl.addEventListener("click", closeLightbox);
+
 overlayEl.addEventListener("click", (e) => {
   // Close if clicking outside the lightbox content
   if (e.target === overlayEl) closeLightbox();
 });
+
 window.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && overlayEl.classList.contains("open")) {
     closeLightbox();
@@ -40,11 +48,25 @@ window.addEventListener("keydown", (e) => {
 });
 
 // Delegate clicks on thumbnails to open the lightbox
-gridEl.addEventListener("click", (e) => {
-  const img = e.target.closest("img.thumb");
-  if (!img) return;
-  // Reuse the already-created object URL; no re-fetch
-  openLightbox(img.src, img.alt);
+gridEl.addEventListener("click", async (e) => {
+    const img = e.target.closest("img.thumb");
+    if (!img) return;
+
+    // Reuse the already-created object URL; no re-fetch
+    openLightbox(img.src, img.alt);
+
+    // now request the full file
+    const fileName = img.dataset.fileName;
+    if (fileName) {
+        try {
+            const fullUrl = `${EP.FILE}/${encodeURIComponent(fileName)}`;
+            const realSrc = await loadImageWithAuth(fullUrl);
+            fullImgEl.src = realSrc; // replace once fetched
+        } 
+        catch (err) {
+            console.warn("Failed to load full file", err);
+        }
+    }
 });
 
 async function getTokens() {
@@ -82,61 +104,69 @@ function setRealImage(img, objectUrl, alt = "") {
 }
 
 async function renderSequential(items) {
-  gridEl.innerHTML = "";
-  for (const it of items) {
-    const card = document.createElement("div");
-    card.className = "card";
+    gridEl.innerHTML = "";
+    for (const it of items) {
+        console.log(`it: ${it}`);
+        
+        const card = document.createElement("div");
+        card.className = "card";
 
-    const img = document.createElement("img");
-    img.className = "thumb";
-    img.decoding = "async";
-    img.loading = "lazy";
-    setPlaceholder(img, it.caption || it.alt || "Image");
+        const img = document.createElement("img");
+        img.className = "thumb";
+        img.decoding = "async";
+        img.loading = "lazy";
+        setPlaceholder(img, it.caption || it.alt || "Image");
 
-    card.appendChild(img);
-    gridEl.appendChild(card);
+        if (it.file_name) img.dataset.fileName = it.file_name;
 
-    try {
-      const src = await loadImageWithAuth(it.url);
-      setRealImage(img, src, it.caption || it.alt || "Image");
-    } catch (e) {
-      // keep placeholder; optionally set a more specific alt
-      img.alt = "Could not load image";
+        card.appendChild(img);
+        gridEl.appendChild(card);
+
+        try {
+            const src = await loadImageWithAuth(it.thumbnailUrl);
+            setRealImage(img, src, it.caption || it.alt || "Image");
+        } 
+        catch (e) {
+            // keep placeholder; optionally set a more specific alt
+            img.alt = "Could not load image";
+        }
     }
-  }
 }
 
 function render(items) {
-  gridEl.innerHTML = "";
-  if (!items?.length) {
-    gridEl.innerHTML = `<div class="empty">No images found.</div>`;
-    return;
-  }
-  for (const it of items) {
-    const card = document.createElement("div");
-    card.className = "card";
-
-    const img = document.createElement("img");
-    img.className = "thumb";
-    img.decoding = "async";
-    img.loading = "lazy";
-    setPlaceholder(img, it.caption || it.alt || "Image");
-
-    loadImageWithAuth(it.url)
-      .then(src => setRealImage(img, src, it.caption || it.alt || "Image"))
-      .catch(() => { img.alt = "Could not load image"; });
-
-    card.appendChild(img);
-
-    const caption = it.caption || it.source || it.title || "";
-    if (caption) {
-      const cap = document.createElement("div");
-      cap.className = "caption";
-      cap.textContent = caption;
-      card.appendChild(cap);
+    gridEl.innerHTML = "";
+    if (!items?.length) {
+        gridEl.innerHTML = `<div class="empty">No images found.</div>`;
+        return;
     }
-    gridEl.appendChild(card);
-  }
+    for (const it of items) {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        const img = document.createElement("img");
+        img.className = "thumb";
+        img.decoding = "async";
+        img.loading = "lazy";
+        setPlaceholder(img, it.caption || it.alt || "Image");
+
+        // store original filename so we can fetch full file later
+        if (it.file_name) img.dataset.fileName = it.file_name;
+
+        loadImageWithAuth(it.thumbnailUrl)
+        .then(src => setRealImage(img, src, it.caption || it.alt || "Image"))
+        .catch(() => { img.alt = "Could not load image"; });
+
+        card.appendChild(img);
+
+        const caption = it.caption || it.source || it.title || "";
+        if (caption) {
+            const cap = document.createElement("div");
+            cap.className = "caption";
+            cap.textContent = caption;
+            card.appendChild(cap);
+        }
+        gridEl.appendChild(card);
+    }
 }
 
 async function loadImages(spin = false) {
@@ -162,7 +192,7 @@ async function loadImages(spin = false) {
 
         if (!res?.ok) throw new Error("Query failed");
         const data = JSON.parse(res.body);
-        console.log(`[SP] data: ${data}`);
+        console.log(`[SP] data: ${JSON.stringify(data)}`);
 
         // Accept multiple shapes:
         // 1) { images: [{url, caption}] }
@@ -171,13 +201,12 @@ async function loadImages(spin = false) {
         const list = (data.images || data.results || data.items || [])
         .map(x => {
             const file = x.file_name || x.filename || null;
-            const directUrl = x.url || x.image_url || x.download_url || null;
-            const url = directUrl || (file ? `${SERVER_URL}/api/get_file/${encodeURIComponent(file)}` : "");
-            return {
-                url,
-            };
+            console.log(`[SP] file: ${file}`);
+            const thumb = x.thumbnail_name ? `${EP.THUMBNAIL}/${encodeURIComponent(x.thumbnail_name)}` : null;
+            console.log(`[SP] thumb: ${thumb}`);
+            return file && thumb ? { file_name: file, thumbnailUrl: thumb } : null;
         })
-        .filter(x => !!x.url);
+        .filter(Boolean);
         console.log(`[SP] list: ${list}`);
 
         renderSequential(list);
