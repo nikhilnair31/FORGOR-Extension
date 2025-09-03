@@ -3,50 +3,131 @@
 import { SERVER_URL, APP_KEY, USER_AGENT } from "./config.js";
 
 const EP = { 
+    UPLOAD_IMAGE: `${SERVER_URL}/api/upload/image`,
     QUERY: `${SERVER_URL}/api/check`,
     FILE: `${SERVER_URL}/api/get_file`,
     THUMBNAIL: `${SERVER_URL}/api/get_thumbnail`,
 };
 
-const gridEl = document.getElementById("grid");
+// ---------------------- Helpers ----------------------
 
-// ----- Lightbox helpers -----
+async function getActiveTab() {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    return tabs[0] || null;
+}
+
+// ---------------------- Bar ----------------------
+
+const shotBtnEl = document.getElementById("shotBtn");
+
+shotBtnEl?.addEventListener("click", async () => {
+    try {
+        // Touch the active tab (helps with user-gesture gating for activeTab permission)
+        const tab = await getActiveTab();
+        if (!tab) throw new Error("No active tab");
+
+        // Capture
+        const dataUrl = await captureVisibleTab();
+        const blob = dataUrlToBlob(dataUrl);
+
+        // Upload
+        const res = await uploadScreenshotBlob(blob);
+        console.log(`res: ${JSON.stringify(res)}`);
+
+        // (Optional) If you return a thumbnail/file id later, you can swap the img
+        // or re-run loadImages() to show processed entries once your backend finishes.
+        loadImages(true);
+
+    } 
+    catch (err) {
+        console.warn("Capture/upload failed:", err);
+        const msg = document.createElement("div");
+        msg.className = "empty";
+        msg.textContent = "Could not capture or upload (permissions or page restricted).";
+        if (!gridEl.firstChild) gridEl.appendChild(msg);
+    }
+});
+
+function captureVisibleTab() {
+    return new Promise((resolve, reject) => {
+        try {
+        chrome.tabs.captureVisibleTab(
+            undefined,
+            { format: "png" }, // or "jpeg" with { quality: 90 }
+            (dataUrl) => {
+                if (chrome.runtime.lastError) return reject(chrome.runtime.lastError);
+                if (!dataUrl) return reject(new Error("No dataUrl from captureVisibleTab()"));
+                resolve(dataUrl);
+            }
+        );
+        } 
+        catch (e) {
+            reject(e);
+        }
+    });
+}
+
+function dataUrlToBlob(dataUrl) {
+    const [meta, b64] = dataUrl.split(",");
+    const mime = (meta.match(/data:(.*?);base64/) || [])[1] || "image/png";
+    const bin = atob(b64);
+    const len = bin.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: mime });
+}
+
+async function uploadScreenshotBlob(blob, filename = `screenshot_${Date.now()}.png`) {
+    const form = new FormData();
+    form.append("image", blob, filename);           // <-- field name MUST be "image"
+
+    const { access_token } = await getTokens();
+    if (!access_token) throw new Error("NO_TOKEN");
+
+    const resp = await fetch(EP.UPLOAD_IMAGE, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${access_token}`,
+            "X-App-Key": APP_KEY,
+            "User-Agent": USER_AGENT
+        },
+        body: form
+    });
+    if (!resp.ok) throw new Error(`Upload failed: ${resp.status}`);
+    return resp.json(); // { status, message, entry_id }
+}
+
+// ---------------------- Lightbox ----------------------
+
+const gridEl = document.getElementById("grid");
 const overlayEl = document.getElementById("overlay");
 const fullImgEl = document.getElementById("fullImg");
 const closeBtnEl = document.getElementById("closeBtn");
 
+
 function openLightbox(src, alt = "") {
-  if (!src) return;
-  fullImgEl.src = src;
-  fullImgEl.alt = alt || "";
-  overlayEl.classList.add("open");
-  overlayEl.setAttribute("aria-hidden", "false");
-  document.body.style.overflow = "hidden"; // prevent background scroll
-  closeBtnEl.focus();
+    if (!src) return;
+    fullImgEl.src = src;
+    fullImgEl.alt = alt || "";
+    overlayEl.classList.add("open");
+    overlayEl.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden"; // prevent background scroll
+    closeBtnEl.focus();
 }
 
 function closeLightbox() {
-  overlayEl.classList.remove("open");
-  overlayEl.setAttribute("aria-hidden", "true");
-  fullImgEl.src = "";
-  document.body.style.overflow = "";
+    overlayEl.classList.remove("open");
+    overlayEl.setAttribute("aria-hidden", "true");
+    fullImgEl.src = "";
+    document.body.style.overflow = "";
 }
 
-// Close interactions
-closeBtnEl.addEventListener("click", closeLightbox);
-
-overlayEl.addEventListener("click", (e) => {
-  // Close if clicking outside the lightbox content
-  if (e.target === overlayEl) closeLightbox();
-});
-
 window.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && overlayEl.classList.contains("open")) {
-    closeLightbox();
-  }
+    if (e.key === "Escape" && overlayEl.classList.contains("open")) {
+        closeLightbox();
+    }
 });
 
-// Delegate clicks on thumbnails to open the lightbox
 gridEl.addEventListener("click", async (e) => {
     const img = e.target.closest("img.thumb");
     if (!img) return;
@@ -68,34 +149,34 @@ gridEl.addEventListener("click", async (e) => {
     }
 });
 
-async function getTokens() {
-  return new Promise(r => chrome.runtime.sendMessage({ type: "GET_TOKENS" }, r));
-}
+overlayEl.addEventListener("click", (e) => {
+    // Close if clicking outside the lightbox content
+    if (e.target === overlayEl) closeLightbox();
+});
 
-async function getActiveTab() {
-  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-  return tabs[0] || null;
-}
+closeBtnEl.addEventListener("click", closeLightbox);
 
-// ---- Placeholder utils ----
+// ---------------------- Rendering ----------------------
+
 const PLACEHOLDER_SVG = encodeURIComponent(`
-  <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="2424">
-    <rect width="100%" height="100%" fill="#ccc"/>
-  </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="2424">
+        <rect width="100%" height="100%" fill="#ccc"/>
+    </svg>
 `);
-const PLACEHOLDER_URL = `data:image/svg+xml;charset=utf-8,${PLACEHOLDER_SVG}`;
 
-function setPlaceholder(img, alt = "Image unavailable") {
-  img.src = PLACEHOLDER_URL;
-  img.dataset.placeholder = "1";
-  img.alt = alt;
-  img.removeAttribute("loading"); // not needed for data URL
-}
+const PLACEHOLDER_URL = `data:image/svg+xml;charset=utf-8,${PLACEHOLDER_SVG}`;
 
 function setRealImage(img, objectUrl, alt = "") {
   img.src = objectUrl;
   img.dataset.placeholder = "0";
   if (alt) img.alt = alt;
+}
+
+function setPlaceholder(img, alt = "Image unavailable") {
+    img.src = PLACEHOLDER_URL;
+    img.dataset.placeholder = "1";
+    img.alt = alt;
+    img.removeAttribute("loading"); // not needed for data URL
 }
 
 async function renderSequential(items) {
@@ -164,6 +245,30 @@ function render(items) {
     }
 }
 
+// ---------------------- Server ----------------------
+
+async function getTokens() {
+  return new Promise(r => chrome.runtime.sendMessage({ type: "GET_TOKENS" }, r));
+}
+
+async function loadImageWithAuth(url) {
+    const { access_token } = await getTokens();
+    if (!access_token) throw new Error("NO_TOKEN");
+
+    const resp = await fetch(url, {
+        headers: {
+            "Authorization": `Bearer ${access_token}`,
+            "User-Agent": USER_AGENT,
+            "X-App-Key": APP_KEY
+        }
+    });
+    if (!resp.ok) throw new Error(`img ${resp.status}`);
+    const blob = await resp.blob();
+    return URL.createObjectURL(blob);
+}
+
+// ---------------------- Initial ----------------------
+
 async function loadImages(spin = false) {
     const tab = await getActiveTab();
     if (!tab?.url) { 
@@ -212,22 +317,4 @@ async function loadImages(spin = false) {
     }
 }
 
-// Fetch an image with Authorization headers and return an object URL
-async function loadImageWithAuth(url) {
-    const { access_token } = await getTokens();
-    if (!access_token) throw new Error("NO_TOKEN");
-
-    const resp = await fetch(url, {
-        headers: {
-            "Authorization": `Bearer ${access_token}`,
-            "User-Agent": USER_AGENT,
-            "X-App-Key": APP_KEY
-        }
-    });
-    if (!resp.ok) throw new Error(`img ${resp.status}`);
-    const blob = await resp.blob();
-    return URL.createObjectURL(blob);
-}
-
-// Initial
 loadImages();

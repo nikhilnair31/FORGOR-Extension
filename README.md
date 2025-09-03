@@ -4,9 +4,10 @@
 
 ### To-Do
 
-- [ ] Update text saving function
-- [ ] Add file saving function?
-- [ ] Change onInstall to install not update
+- [ ] Save check results and use that when sidebar opened
+- [ ] Refresh sidebar output when it's open and user clicks on icon
+- [ ] Add delete file button
+- [ ] 
 
 ### Skipped
 
@@ -14,4 +15,4 @@
 
 ### Done
 
-- [x]
+- [x] Add take screenshot and upload button

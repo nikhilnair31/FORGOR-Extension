@@ -24,6 +24,8 @@
                 position: sticky; 
                 top: 0; 
                 padding: 12px 14px; 
+                display: flex;
+                gap: 8px;
                 z-index: 1; 
                 background-color: var(--base-1);
             }
@@ -148,7 +150,9 @@
     <body>
         <header>
             <div id="app_title"><strong>FORGOR</strong></div>
-            <div id="meta"></div>
+            <button id="shotBtn" class="refresh" type="button" title="Capture & upload">
+                Capture & Upload
+            </button>
         </header>
         <main id="grid"></main>
         <div id="overlay" class="overlay" aria-hidden="true">

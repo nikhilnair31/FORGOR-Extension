@@ -191,31 +191,6 @@ chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
   });
 });
 
-async function refreshBadgeForActive() {
-  console.log("[BG] refreshBadgeForActive called");
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    console.log("[BG] Active tab", tab);
-    if (!tab?.url) return clearBadge();
-
-    const title = tab.title || "";
-    let domain = "";
-    try { domain = new URL(tab.url).hostname; } catch {}
-    console.log(`[BG] Querying API with title="${title}" domain="${domain}"`);
-
-    const has = await hasResultsFor(`${title} ${domain}`.trim());
-    console.log("[BG] API returned hasResults =", has);
-    if (has) {
-      await chrome.action.setBadgeText({ text: "●" });
-      await chrome.action.setBadgeBackgroundColor({ color: "#3b82f6" });
-    } else {
-      await clearBadge();
-    }
-  } catch (err) {
-    console.error("[BG] refreshBadgeForActive error", err);
-    await clearBadge();
-  }
-}
 async function clearBadge() { await chrome.action.setBadgeText({ text: "" }); }
 
 async function hasResultsFor(searchText) {
