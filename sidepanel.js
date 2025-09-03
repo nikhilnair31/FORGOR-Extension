@@ -1,10 +1,51 @@
 import { SERVER_URL, APP_KEY, USER_AGENT } from "./config.js";
 
-const EP = { QUERY: `${SERVER_URL}/api/query` };
+const EP = { QUERY: `${SERVER_URL}/api/check` };
 
 const metaEl = document.getElementById("meta");
 const gridEl = document.getElementById("grid");
-document.getElementById("refreshBtn").addEventListener("click", () => loadImages(true));
+
+// ----- Lightbox helpers -----
+const overlayEl = document.getElementById("overlay");
+const fullImgEl = document.getElementById("fullImg");
+const closeBtnEl = document.getElementById("closeBtn");
+
+function openLightbox(src, alt = "") {
+  if (!src) return;
+  fullImgEl.src = src;
+  fullImgEl.alt = alt || "";
+  overlayEl.classList.add("open");
+  overlayEl.setAttribute("aria-hidden", "false");
+  document.body.style.overflow = "hidden"; // prevent background scroll
+  closeBtnEl.focus();
+}
+
+function closeLightbox() {
+  overlayEl.classList.remove("open");
+  overlayEl.setAttribute("aria-hidden", "true");
+  fullImgEl.src = "";
+  document.body.style.overflow = "";
+}
+
+// Close interactions
+closeBtnEl.addEventListener("click", closeLightbox);
+overlayEl.addEventListener("click", (e) => {
+  // Close if clicking outside the lightbox content
+  if (e.target === overlayEl) closeLightbox();
+});
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && overlayEl.classList.contains("open")) {
+    closeLightbox();
+  }
+});
+
+// Delegate clicks on thumbnails to open the lightbox
+gridEl.addEventListener("click", (e) => {
+  const img = e.target.closest("img.thumb");
+  if (!img) return;
+  // Reuse the already-created object URL; no re-fetch
+  openLightbox(img.src, img.alt);
+});
 
 async function getTokens() {
   return new Promise(r => chrome.runtime.sendMessage({ type: "GET_TOKENS" }, r));
@@ -19,55 +60,83 @@ function setMeta(title, domain) {
   metaEl.textContent = title && domain ? `${title} — ${domain}` : (title || domain || "");
 }
 
-async function renderSequential(items) {
-    gridEl.innerHTML = "";
-    for (const it of items) {
-        const card = document.createElement("div");
-        card.className = "card";
-        const img = document.createElement("img");
-        img.className = "thumb";
-        img.alt = "Loading…";
-        card.appendChild(img);
-        gridEl.appendChild(card);
+// ---- Placeholder utils ----
+const PLACEHOLDER_SVG = encodeURIComponent(`
+  <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="2424">
+    <rect width="100%" height="100%" fill="#ccc"/>
+  </svg>
+`);
+const PLACEHOLDER_URL = `data:image/svg+xml;charset=utf-8,${PLACEHOLDER_SVG}`;
 
-        try {
-        const src = await loadImageWithAuth(it.url);
-        img.src = src;
-        } catch (e) {
-        img.alt = "Failed to load";
-        }
+function setPlaceholder(img, alt = "Image unavailable") {
+  img.src = PLACEHOLDER_URL;
+  img.dataset.placeholder = "1";
+  img.alt = alt;
+  img.removeAttribute("loading"); // not needed for data URL
+}
+
+function setRealImage(img, objectUrl, alt = "") {
+  img.src = objectUrl;
+  img.dataset.placeholder = "0";
+  if (alt) img.alt = alt;
+}
+
+async function renderSequential(items) {
+  gridEl.innerHTML = "";
+  for (const it of items) {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const img = document.createElement("img");
+    img.className = "thumb";
+    img.decoding = "async";
+    img.loading = "lazy";
+    setPlaceholder(img, it.caption || it.alt || "Image");
+
+    card.appendChild(img);
+    gridEl.appendChild(card);
+
+    try {
+      const src = await loadImageWithAuth(it.url);
+      setRealImage(img, src, it.caption || it.alt || "Image");
+    } catch (e) {
+      // keep placeholder; optionally set a more specific alt
+      img.alt = "Could not load image";
     }
+  }
 }
 
 function render(items) {
-    gridEl.innerHTML = "";
-    if (!items?.length) {
-        gridEl.innerHTML = `<div class="empty">No images found.</div>`;
-        return;
+  gridEl.innerHTML = "";
+  if (!items?.length) {
+    gridEl.innerHTML = `<div class="empty">No images found.</div>`;
+    return;
+  }
+  for (const it of items) {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const img = document.createElement("img");
+    img.className = "thumb";
+    img.decoding = "async";
+    img.loading = "lazy";
+    setPlaceholder(img, it.caption || it.alt || "Image");
+
+    loadImageWithAuth(it.url)
+      .then(src => setRealImage(img, src, it.caption || it.alt || "Image"))
+      .catch(() => { img.alt = "Could not load image"; });
+
+    card.appendChild(img);
+
+    const caption = it.caption || it.source || it.title || "";
+    if (caption) {
+      const cap = document.createElement("div");
+      cap.className = "caption";
+      cap.textContent = caption;
+      card.appendChild(cap);
     }
-    for (const it of items) {
-        const card = document.createElement("div");
-        card.className = "card";
-        const img = document.createElement("img");
-        img.className = "thumb";
-        img.alt = it.caption || it.alt || "Image";
-
-        // Images may require auth headers → fetch as blob then objectURL
-        loadImageWithAuth(it.url).then(src => { img.src = src; }).catch(() => {
-        img.alt = "Failed to load image";
-        });
-
-        card.appendChild(img);
-
-        const caption = it.caption || it.source || it.title || "";
-        if (caption) {
-        const cap = document.createElement("div");
-        cap.className = "caption";
-        cap.textContent = caption;
-        card.appendChild(cap);
-        }
-        gridEl.appendChild(card);
-    }
+    gridEl.appendChild(card);
+  }
 }
 
 async function loadImages(spin = false) {

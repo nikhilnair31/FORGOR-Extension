@@ -5,7 +5,7 @@ const EP = {
   LOGIN:        `${SERVER_URL}/api/login`,
   REGISTER:     `${SERVER_URL}/api/register`,
   REFRESH:      `${SERVER_URL}/api/refresh_token`,
-  QUERY:        `${SERVER_URL}/api/query`,           // accepts { "searchText": "..." }
+  QUERY:        `${SERVER_URL}/api/check`,           // accepts { "searchText": "..." }
   GET_SAVES:    `${SERVER_URL}/api/get_saves_left`   // optional usage
 };
 
