@@ -1,14 +1,7 @@
 // sidepanel.js
 
-import { SERVER_URL, APP_KEY, USER_AGENT } from "./config.js";
-
-const EP = { 
-    UPLOAD_IMAGE: `${SERVER_URL}/api/upload/image`,
-    DELETE: `${SERVER_URL}/api/delete/file`,
-    QUERY: `${SERVER_URL}/api/check`,
-    FILE: `${SERVER_URL}/api/get_file`,
-    THUMBNAIL: `${SERVER_URL}/api/get_thumbnail`,
-};
+import { APP_KEY, USER_AGENT } from "./config.js";
+import { EP, fetchWithAuth, loadImageWithAuth, dataUrlToBlob } from "./shared.js";
 
 // ---------------------- Helpers ----------------------
 
@@ -86,34 +79,18 @@ function captureVisibleTab() {
     });
 }
 
-function dataUrlToBlob(dataUrl) {
-    const [meta, b64] = dataUrl.split(",");
-    const mime = (meta.match(/data:(.*?);base64/) || [])[1] || "image/png";
-    const bin = atob(b64);
-    const len = bin.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
-    return new Blob([bytes], { type: mime });
-}
-
 async function uploadScreenshotBlob(blob, filename = `screenshot_${Date.now()}.png`) {
     const form = new FormData();
-    form.append("image", blob, filename);           // <-- field name MUST be "image"
+    form.append("image", blob, filename); // backend expects "image"
 
-    const { access_token } = await getTokens();
-    if (!access_token) throw new Error("NO_TOKEN");
-
-    const resp = await fetch(EP.UPLOAD_IMAGE, {
+    const resp = await fetchWithAuth(EP.UPLOAD_IMAGE, {
         method: "POST",
-        headers: {
-            "Authorization": `Bearer ${access_token}`,
-            "X-App-Key": APP_KEY,
-            "User-Agent": USER_AGENT
-        },
+        headers: { "User-Agent": USER_AGENT, "X-App-Key": APP_KEY }, // baseHeaders is applied inside fetchWithAuth too
         body: form
     });
     if (!resp.ok) throw new Error(`Upload failed: ${resp.status}`);
-    return resp.json(); // { status, message, entry_id }
+    
+    return resp.json();
 }
 
 // ---------------------- Lightbox ----------------------
@@ -153,22 +130,15 @@ deleteBtnEl?.addEventListener("click", async () => {
     if (!confirm("Are you sure you want to delete this post?")) return;
 
     try {
-        const { access_token } = await getTokens();
-        if (!access_token) throw new Error("NO_TOKEN");
-
         const form = new FormData();
         form.append("file_name", currentFileName);
 
-        const resp = await fetch(`${EP.DELETE}`, {
+        const resp = await fetchWithAuth(EP.DELETE, {
             method: "POST",
-            headers: {
-                "Authorization": `Bearer ${access_token}`,
-                "X-App-Key": APP_KEY
-            },
             body: form
         });
-
         if (!resp.ok) throw new Error(`Delete failed: ${resp.status}`);
+        
         const res = await resp.json();
         console.log("Deleted:", res);
 
@@ -316,22 +286,6 @@ function render(items) {
 
 async function getTokens() {
   return new Promise(r => chrome.runtime.sendMessage({ type: "GET_TOKENS" }, r));
-}
-
-async function loadImageWithAuth(url) {
-    const { access_token } = await getTokens();
-    if (!access_token) throw new Error("NO_TOKEN");
-
-    const resp = await fetch(url, {
-        headers: {
-            "Authorization": `Bearer ${access_token}`,
-            "User-Agent": USER_AGENT,
-            "X-App-Key": APP_KEY
-        }
-    });
-    if (!resp.ok) throw new Error(`img ${resp.status}`);
-    const blob = await resp.blob();
-    return URL.createObjectURL(blob);
 }
 
 // ---------------------- Loading ----------------------

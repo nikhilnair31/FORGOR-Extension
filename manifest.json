@@ -7,6 +7,7 @@
         "default_title": "FORGOR"
     },
     "permissions": [
+        "contextMenus",
         "storage",
         "tabs",
         "activeTab",

@@ -1,30 +1,21 @@
 // background.js
 
-import { SERVER_URL, APP_KEY, USER_AGENT } from "./config.js";
-
-const EP = {
-    LOGIN:        `${SERVER_URL}/api/login`,
-    REGISTER:     `${SERVER_URL}/api/register`,
-    REFRESH:      `${SERVER_URL}/api/refresh_token`,
-    QUERY:        `${SERVER_URL}/api/check`,           // accepts { "searchText": "..." }
-    GET_SAVES:    `${SERVER_URL}/api/get_saves_left`   // optional usage
-};
-
-const store = {
-    async get(keys) { return new Promise(r => chrome.storage.sync.get(keys, r)); },
-    async set(obj) { return new Promise(r => chrome.storage.sync.set(obj, r)); },
-    async del(keys) { return new Promise(r => chrome.storage.sync.remove(keys, r)); }
-};
+import {
+    EP,
+    store,
+    fetchWithAuth,
+    dataUrlToBlob,
+    timestampName,
+    getTokens,
+    setBadge,
+    clearBadge,
+    makeQueryKey
+} from "./shared.js";
 
 // ---------------------- Caching ----------------------
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min
 const queryCache = new Map(); // key -> { ts, data }
-
-// Normalize a query key to reduce duplicates
-function makeQueryKey(s) {
-    return (s || "").trim().toLowerCase();
-}
 
 function putCache(searchText, data) {
     queryCache.set(makeQueryKey(searchText), { ts: Date.now(), data });
@@ -111,72 +102,23 @@ async function hasResultsFor(searchText) {
 
 // ---------------------- Server ----------------------
 
-async function getTokens() {
-    const { access_token = "", refresh_token = "" } = await store.get(["access_token", "refresh_token"]);
-    return { access_token, refresh_token };
-}
+async function uploadScreenshot({ dataUrl, pageUrl = "", pageTitle = "", selectionText = "" }) {
+    if (!dataUrl) throw new Error("No dataUrl provided");
+    
+    const blob = dataUrlToBlob(dataUrl);
+    const file = new File([blob], timestampName(), { type: blob.type });
 
-async function setTokens(access_token, refresh_token) {
-  await store.set({ access_token, refresh_token });
-}
+    const form = new FormData();
+    form.append("image", file);             // field name expected by backend
+    // form.append("source", "chrome_screenshot");
+    form.append("page_url", pageUrl);
+    form.append("page_title", pageTitle);
+    form.append("selection", selectionText);
 
-async function clearTokens() { await store.del(["access_token","refresh_token"]); }
-
-function baseHeaders(extra = {}) {
-    return {
-        "User-Agent": USER_AGENT,
-        "X-App-Key": APP_KEY,
-        ...extra
-    };
-}
-
-// ---- Token-aware fetch with 401 retry via /api/refresh_token ----
-async function fetchWithAuth(url, init = {}) {
-    const { access_token, refresh_token } = await getTokens();
-    if (!access_token) throw new Error("NO_TOKEN");
-
-    const req1 = await fetch(url, {
-        ...init,
-        headers: {
-        ...baseHeaders(init.headers),
-        "Authorization": `Bearer ${access_token}`
-        }
-    });
-
-    if (req1.status !== 401) return req1;
-
-    // Try refresh
-    if (!refresh_token) return req1;
-
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-    const ref = await fetch(EP.REFRESH, {
-        method: "POST",
-        headers: baseHeaders({ "Content-Type": "application/json", "X-Timezone": tz }),
-        body: JSON.stringify({ refresh_token })
-    });
-
-    if (!ref.ok) {
-        await clearTokens();
-        return req1;
-    }
-
-    const refJson = await ref.json().catch(() => ({}));
-    const newAccess = refJson?.access_token;
-    if (!newAccess) {
-        await clearTokens();
-        return req1;
-    }
-
-    await setTokens(newAccess, refresh_token);
-
-    // Retry original
-    return fetch(url, {
-        ...init,
-        headers: {
-        ...baseHeaders(init.headers),
-        "Authorization": `Bearer ${newAccess}`
-        }
-    });
+    const res = await fetchWithAuth(EP.UPLOAD_IMAGE, { method: "POST", body: form });
+    if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+    
+    return res.json().catch(() => ({}));
 }
 
 // ---------------------- Login ----------------------
@@ -190,8 +132,6 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 });
 
 // ---------------------- Extension Icon ----------------------
-
-async function clearBadge() { await chrome.action.setBadgeText({ text: "" }); }
 
 chrome.action.onClicked.addListener((tab) => {
     console.log("[BG] Toolbar icon clicked");
@@ -232,6 +172,44 @@ chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
         domain,
         tabId
     });
+});
+
+// ---------------------- Context Menu ----------------------
+
+chrome.runtime.onInstalled.addListener(() => {
+    chrome.contextMenus.create({
+        id: "forgor-capture-upload",
+        title: "FORGOR: Take screenshot & upload",
+        contexts: ["page", "selection", "image", "link", "video", "audio"]
+    });
+});
+
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+    if (info.menuItemId !== "forgor-capture-upload") return;
+    
+    try {
+        await setBadge("…");
+
+        // Capture visible area of the current window's active tab
+        const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
+
+        const payload = {
+            dataUrl,
+            pageUrl: info.pageUrl || (tab && tab.url) || "",
+            pageTitle: tab && tab.title ? tab.title : "",
+            selectionText: info.selectionText || ""
+        };
+
+        await uploadScreenshot(payload);
+        await setBadge("OK");
+    } 
+    catch (err) {
+        console.error(err);
+        await setBadge("ERR");
+    } 
+    finally {
+        clearBadge();
+    }
 });
 
 // ---------------------- General ----------------------
