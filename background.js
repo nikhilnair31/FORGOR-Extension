@@ -120,6 +120,18 @@ async function uploadScreenshot({ dataUrl, pageUrl = "", pageTitle = "", selecti
     
     return res.json().catch(() => ({}));
 }
+async function uploadImageUrl({ imageUrl, pageUrl = "" }) {
+    if (!imageUrl) throw new Error("No imageUrl provided");
+
+    const form = new FormData();
+    form.append("image_url", imageUrl);   // server expects this
+    form.append("post_url", pageUrl || "-");
+
+    const res = await fetchWithAuth(EP.UPLOAD_IMAGEURL, { method: "POST", body: form });
+    if (!res.ok) throw new Error(`Upload URL failed: ${res.status}`);
+
+    return res.json().catch(() => ({}));
+}
 
 // ---------------------- Login ----------------------
 
@@ -177,39 +189,83 @@ chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
 // ---------------------- Context Menu ----------------------
 
 chrome.runtime.onInstalled.addListener(() => {
+    // Existing screenshot menu
     chrome.contextMenus.create({
         id: "forgor-capture-upload",
         title: "FORGOR: Take screenshot & upload",
         contexts: ["page", "selection", "image", "link", "video", "audio"]
     });
+
+    // NEW: upload the specific image you right-clicked
+    chrome.contextMenus.create({
+        id: "forgor-upload-image-url",
+        title: "FORGOR: Upload this image",
+        contexts: ["image"]
+    });
 });
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-    if (info.menuItemId !== "forgor-capture-upload") return;
-    
-    try {
-        await setBadge("…");
+    // NEW: upload the image the user right-clicked
+    if (info.menuItemId === "forgor-upload-image-url") {
+        try {
+            await setBadge("…");
 
-        // Capture visible area of the current window's active tab
-        const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
+            const pageUrl = info.pageUrl || (tab && tab.url) || "";
+            const srcUrl  = info.srcUrl || "";
 
-        const payload = {
-            dataUrl,
-            pageUrl: info.pageUrl || (tab && tab.url) || "",
-            pageTitle: tab && tab.title ? tab.title : "",
-            selectionText: info.selectionText || ""
-        };
+            if (!srcUrl) throw new Error("No srcUrl on image context");
 
-        await uploadScreenshot(payload);
-        await setBadge("OK");
-    } 
-    catch (err) {
-        console.error(err);
-        await setBadge("ERR");
-    } 
-    finally {
-        clearBadge();
+            if (srcUrl.startsWith("data:")) {
+                // Fallback for inline/data images: upload the actual bytes
+                await uploadScreenshot({
+                    dataUrl: srcUrl,
+                    pageUrl,
+                    pageTitle: tab?.title || "",
+                    selectionText: info.selectionText || ""
+                });
+            } else {
+                // Normal web image: use the URL endpoint
+                await uploadImageUrl({ imageUrl: srcUrl, pageUrl });
+            }
+
+            await setBadge("OK");
+        } 
+        catch (err) {
+            console.error(err);
+            await setBadge("ERR");
+        } 
+        finally {
+            clearBadge();
+        }
+        return; // Prevent falling through to the screenshot branch
     }
+    // Existing screenshot menu
+    if (info.menuItemId === "forgor-capture-upload") {
+        try {
+            await setBadge("…");
+
+            // Capture visible area of the current window's active tab
+            const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
+
+            const payload = {
+                dataUrl,
+                pageUrl: info.pageUrl || (tab && tab.url) || "",
+                pageTitle: tab && tab.title ? tab.title : "",
+                selectionText: info.selectionText || ""
+            };
+
+            await uploadScreenshot(payload);
+            await setBadge("OK");
+        } 
+        catch (err) {
+            console.error(err);
+            await setBadge("ERR");
+        } 
+        finally {
+            clearBadge();
+        }
+        return;
+    };
 });
 
 // ---------------------- General ----------------------
