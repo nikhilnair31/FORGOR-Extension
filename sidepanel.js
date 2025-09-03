@@ -4,6 +4,7 @@ import { SERVER_URL, APP_KEY, USER_AGENT } from "./config.js";
 
 const EP = { 
     UPLOAD_IMAGE: `${SERVER_URL}/api/upload/image`,
+    DELETE: `${SERVER_URL}/api/delete/file`,
     QUERY: `${SERVER_URL}/api/check`,
     FILE: `${SERVER_URL}/api/get_file`,
     THUMBNAIL: `${SERVER_URL}/api/get_thumbnail`,
@@ -103,15 +104,18 @@ const gridEl = document.getElementById("grid");
 const overlayEl = document.getElementById("overlay");
 const fullImgEl = document.getElementById("fullImg");
 const closeBtnEl = document.getElementById("closeBtn");
+const deleteBtnEl = document.getElementById("deleteBtn");
 
+let currentFileName = null; // track which file is open
 
-function openLightbox(src, alt = "") {
+function openLightbox(src, alt = "", fileName = null) {
     if (!src) return;
     fullImgEl.src = src;
     fullImgEl.alt = alt || "";
+    currentFileName = fileName || null;
     overlayEl.classList.add("open");
     overlayEl.setAttribute("aria-hidden", "false");
-    document.body.style.overflow = "hidden"; // prevent background scroll
+    document.body.style.overflow = "hidden";
     closeBtnEl.focus();
 }
 
@@ -121,6 +125,43 @@ function closeLightbox() {
     fullImgEl.src = "";
     document.body.style.overflow = "";
 }
+
+deleteBtnEl?.addEventListener("click", async () => {
+    if (!currentFileName) {
+        alert("No file selected");
+        return;
+    }
+
+    if (!confirm("Are you sure you want to delete this post?")) return;
+
+    try {
+        const { access_token } = await getTokens();
+        if (!access_token) throw new Error("NO_TOKEN");
+
+        const form = new FormData();
+        form.append("file_name", currentFileName);
+
+        const resp = await fetch(`${EP.DELETE}`, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${access_token}`,
+                "X-App-Key": APP_KEY
+            },
+            body: form
+        });
+
+        if (!resp.ok) throw new Error(`Delete failed: ${resp.status}`);
+        const res = await resp.json();
+        console.log("Deleted:", res);
+
+        // Refresh UI
+        closeLightbox();
+        loadImages(true);
+    } catch (err) {
+        console.error("Delete failed", err);
+        alert("Failed to delete this post");
+    }
+});
 
 window.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && overlayEl.classList.contains("open")) {
@@ -132,11 +173,10 @@ gridEl.addEventListener("click", async (e) => {
     const img = e.target.closest("img.thumb");
     if (!img) return;
 
-    // Reuse the already-created object URL; no re-fetch
-    openLightbox(img.src, img.alt);
+    const fileName = img.dataset.fileName || null;
+    openLightbox(img.src, img.alt, fileName);
 
     // now request the full file
-    const fileName = img.dataset.fileName;
     if (fileName) {
         try {
             const fullUrl = `${EP.FILE}/${encodeURIComponent(fileName)}`;

@@ -6,8 +6,7 @@
 
 - [ ] Save check results and use that when sidebar opened
 - [ ] Refresh sidebar output when it's open and user clicks on icon
-- [ ] Add delete file button
-- [ ] 
+- [ ] Add indicator of taking screenshot and uploading
 
 ### Skipped
 
@@ -15,4 +14,5 @@
 
 ### Done
 
+- [x] Add delete file button
 - [x] Add take screenshot and upload button
