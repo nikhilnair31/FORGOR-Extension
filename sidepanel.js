@@ -20,34 +20,52 @@ async function getActiveTab() {
 // ---------------------- Bar ----------------------
 
 const shotBtnEl = document.getElementById("shotBtn");
+const metaEl = document.getElementById("meta");
 
 shotBtnEl?.addEventListener("click", async () => {
+    const origText = shotBtnEl.textContent;
+    const disable = (t) => { shotBtnEl.disabled = true; shotBtnEl.textContent = t; };
+    const enable  = ()  => { shotBtnEl.disabled = false; shotBtnEl.textContent = origText; };
+
     try {
-        // Touch the active tab (helps with user-gesture gating for activeTab permission)
         const tab = await getActiveTab();
         if (!tab) throw new Error("No active tab");
 
-        // Capture
+        disable("Capturing…");
+        setMeta("Capturing visible area…");
+
         const dataUrl = await captureVisibleTab();
         const blob = dataUrlToBlob(dataUrl);
 
-        // Upload
+        disable("Uploading…");
+        setMeta("Uploading screenshot…");
+
         const res = await uploadScreenshotBlob(blob);
         console.log(`res: ${JSON.stringify(res)}`);
 
-        // (Optional) If you return a thumbnail/file id later, you can swap the img
-        // or re-run loadImages() to show processed entries once your backend finishes.
+        setMeta("Saved! Processing…");
+        // Light refresh so the new item appears (if your backend is synchronous it’ll show immediately)
         loadImages(true);
-
     } 
     catch (err) {
         console.warn("Capture/upload failed:", err);
-        const msg = document.createElement("div");
-        msg.className = "empty";
-        msg.textContent = "Could not capture or upload (permissions or page restricted).";
-        if (!gridEl.firstChild) gridEl.appendChild(msg);
+        setMeta("Could not capture or upload (permissions or page restricted).");
+        
+        if (!gridEl.firstChild) {
+            const msg = document.createElement("div");
+            msg.className = "empty";
+            msg.textContent = "Could not capture or upload (permissions or page restricted).";
+            gridEl.appendChild(msg);
+        }
+    } 
+    finally {
+        enable();
+        // Clear status after a moment
+        setTimeout(() => setMeta(""), 1500);
     }
 });
+
+function setMeta(text) { if (metaEl) metaEl.textContent = text || ""; }
 
 function captureVisibleTab() {
     return new Promise((resolve, reject) => {
@@ -154,10 +172,19 @@ deleteBtnEl?.addEventListener("click", async () => {
         const res = await resp.json();
         console.log("Deleted:", res);
 
-        // Refresh UI
+        // Remove the card inline
+        const card = gridEl.querySelector(`img.thumb[data-file-name="${CSS.escape(currentFileName)}"]`)?.closest('.card')
+                || gridEl.querySelector(`img.thumb[data-fileName="${CSS.escape(currentFileName)}"]`)?.closest('.card');
+        if (card) card.remove();
+
         closeLightbox();
-        loadImages(true);
-    } catch (err) {
+
+        // If nothing left, show empty state
+        if (!gridEl.children.length) {
+            gridEl.innerHTML = `<div class="empty">No images found.</div>`;
+        }
+    } 
+    catch (err) {
         console.error("Delete failed", err);
         alert("Failed to delete this post");
     }
@@ -222,7 +249,7 @@ function setPlaceholder(img, alt = "Image unavailable") {
 async function renderSequential(items) {
     gridEl.innerHTML = "";
     for (const it of items) {
-        console.log(`it: ${it}`);
+        console.log(`it: ${JSON.stringify{it}}`);
         
         const card = document.createElement("div");
         card.className = "card";
@@ -309,50 +336,51 @@ async function loadImageWithAuth(url) {
 
 // ---------------------- Initial ----------------------
 
+chrome.runtime.onMessage.addListener((msg) => {
+    if (msg?.type === "REFRESH_IF_OPEN") {
+        // If our DOM exists, we assume we're open—do a light refresh
+        if (document.visibilityState === "visible") {
+        loadImages(true);
+        }
+    }
+});
+
 async function loadImages(spin = false) {
     const tab = await getActiveTab();
-    if (!tab?.url) { 
-        render([]); 
-        return; 
-    }
-    console.log(`[SP] tab.url: ${tab.url}`);
+    if (!tab?.url) { render([]); return; }
 
     const title = tab.title || "";
     let domain = ""; try { domain = new URL(tab.url).hostname || ""; } catch {}
-    console.log(`[SP] title: ${title} - domain: ${domain}`);
 
     if (spin) gridEl.innerHTML = `<div class="empty">Loading…</div>`;
 
     const { access_token } = await getTokens();
     if (!access_token) { render([]); return; }
 
+    const searchText = `${title} ${domain}`.trim();
+
     try {
+        // Ask background for cached-or-fetch
         const res = await chrome.runtime.sendMessage({
-            type: "QUERY",
-            searchText: `${title} ${domain}`.trim()
+        type: "QUERY_CACHED_OR_FETCH",
+        searchText
         });
-
         if (!res?.ok) throw new Error("Query failed");
-        const data = JSON.parse(res.body);
-        console.log(`[SP] data: ${JSON.stringify(data)}`);
 
-        // Accept multiple shapes:
-        // 1) { images: [{url, caption}] }
-        // 2) { results: [...] } with image_url/url fields
-        // 3) { items: [...] }
+        const data = JSON.parse(res.body || "{}");
+
         const list = (data.images || data.results || data.items || [])
         .map(x => {
             const file = x.file_name || x.filename || null;
-            console.log(`[SP] file: ${file}`);
             const thumb = x.thumbnail_name ? `${EP.THUMBNAIL}/${encodeURIComponent(x.thumbnail_name)}` : null;
-            console.log(`[SP] thumb: ${thumb}`);
             return file && thumb ? { file_name: file, thumbnailUrl: thumb } : null;
         })
         .filter(Boolean);
-        console.log(`[SP] list: ${list}`);
 
-        renderSequential(list);
+        // Sequential helps masonry feel nicer as URLs resolve
+        await renderSequential(list);
     } catch (e) {
+        console.warn("[SP] loadImages error", e);
         gridEl.innerHTML = `<div class="empty">Failed to load images.</div>`;
     }
 }

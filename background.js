@@ -2,14 +2,32 @@
 
 import { SERVER_URL, APP_KEY, USER_AGENT } from "./config.js";
 
-// ---- Endpoints from your Android Helpers ----
 const EP = {
-  LOGIN:        `${SERVER_URL}/api/login`,
-  REGISTER:     `${SERVER_URL}/api/register`,
-  REFRESH:      `${SERVER_URL}/api/refresh_token`,
-  QUERY:        `${SERVER_URL}/api/check`,           // accepts { "searchText": "..." }
-  GET_SAVES:    `${SERVER_URL}/api/get_saves_left`   // optional usage
+    LOGIN:        `${SERVER_URL}/api/login`,
+    REGISTER:     `${SERVER_URL}/api/register`,
+    REFRESH:      `${SERVER_URL}/api/refresh_token`,
+    QUERY:        `${SERVER_URL}/api/check`,           // accepts { "searchText": "..." }
+    GET_SAVES:    `${SERVER_URL}/api/get_saves_left`   // optional usage
 };
+
+
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min
+const queryCache = new Map(); // key -> { ts, data }
+
+// Normalize a query key to reduce duplicates
+function makeQueryKey(s) {
+    return (s || "").trim().toLowerCase();
+}
+function putCache(searchText, data) {
+    queryCache.set(makeQueryKey(searchText), { ts: Date.now(), data });
+}
+function getCache(searchText) {
+    const k = makeQueryKey(searchText);
+    const entry = queryCache.get(k);
+    if (!entry) return null;
+    if (Date.now() - entry.ts > CACHE_TTL_MS) { queryCache.delete(k); return null; }
+    return entry.data;
+}
 
 // ==================== Batch Buffer (5s quiet window) ====================
 const FLUSH_MS = 1000; // 5 seconds of no new actions -> flush
@@ -18,13 +36,13 @@ let flushTimer = null;
 
 // Push a user action into the buffer and (re)start the flush timer
 function queueUserAction(entry) {
-  actionBuffer.push({
-    title: (entry?.title || "").trim(),
-    domain: (entry?.domain || "").trim(),
-    tabId: entry?.tabId ?? null,
-    ts: Date.now()
-  });
-  scheduleFlush();
+    actionBuffer.push({
+        title: (entry?.title || "").trim(),
+        domain: (entry?.domain || "").trim(),
+        tabId: entry?.tabId ?? null,
+        ts: Date.now()
+    });
+    scheduleFlush();
 }
 
 function scheduleFlush() {
@@ -33,39 +51,31 @@ function scheduleFlush() {
 }
 
 async function flushActions() {
-  flushTimer = null;
-  const batch = actionBuffer.splice(0);
-  if (!batch.length) return;
+    flushTimer = null;
+    const batch = actionBuffer.splice(0);
+    if (!batch.length) return;
 
-  // Build a batched search string: unique "title + domain" combos
-  const parts = Array.from(
-    new Set(
-      batch
-        .map(it => `${it.title} ${it.domain}`.trim())
-        .filter(Boolean)
-    )
-  );
+    const parts = Array.from(
+        new Set(batch.map(it => `${it.title} ${it.domain}`.trim()).filter(Boolean))
+    );
+    if (!parts.length) { await clearBadge(); return; }
 
-  // If nothing useful, just clear the badge and bail
-  if (!parts.length) {
-    await clearBadge();
-    return;
-  }
+    const batchedSearchText = parts.join(" || ");
 
-  const batchedSearchText = parts.join(" || ");
-
-  try {
-    const has = await hasResultsFor(batchedSearchText);
-    if (has) {
-      await chrome.action.setBadgeText({ text: "●" });
-      await chrome.action.setBadgeBackgroundColor({ color: "#3b82f6" });
-    } else {
-      await clearBadge();
+    try {
+        const { has } = await hasResultsFor(batchedSearchText);
+        if (has) {
+            await chrome.action.setBadgeText({ text: "●" });
+            await chrome.action.setBadgeBackgroundColor({ color: "#3b82f6" });
+        } 
+        else {
+            await clearBadge();
+        }
+    } 
+    catch (err) {
+        console.error("[BG] flushActions error", err);
+        await clearBadge();
     }
-  } catch (err) {
-    console.error("[BG] flushActions error", err);
-    await clearBadge();
-  }
 }
 
 // ---- Storage helpers ----
@@ -161,6 +171,9 @@ chrome.action.onClicked.addListener((tab) => {
 
         // Clear badge when panel is opened
         await clearBadge();
+
+        // Ask the sidepanel to refresh itself if it's already open
+        chrome.runtime.sendMessage({ type: "REFRESH_IF_OPEN" });
     });
 });
 
@@ -194,37 +207,73 @@ chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
 async function clearBadge() { await chrome.action.setBadgeText({ text: "" }); }
 
 async function hasResultsFor(searchText) {
-  try {
-    const r = await fetchWithAuth(EP.QUERY, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ searchText })
-    });
-    if (!r.ok) return false;
-    const j = await r.json().catch(() => null);
-    console.log("[BG] j =", j);
-    // Be tolerant to shapes: results[], images[], items[]
-    const arr = j?.images || j?.results || j?.items || [];
-    return Array.isArray(arr) && arr.length > 0;
-  } catch { return false; }
+    try {
+        const r = await fetchWithAuth(EP.QUERY, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ searchText })
+        });
+        if (!r.ok) return { has: false, data: null };
+        
+        const j = await r.json().catch(() => null);
+        putCache(searchText, j);
+        console.log("[BG] j =", j);
+        
+        const arr = j?.images || j?.results || j?.items || [];
+        return { has: Array.isArray(arr) && arr.length > 0, data: j };
+    } 
+    catch { 
+        return { has: false, data: null };
+    }
 }
 
 // ---- Messages from sidepanel/login ----
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   (async () => {
     if (msg?.type === "GET_TOKENS") {
-      sendResponse(await getTokens()); return;
+        sendResponse(await getTokens()); 
+        return;
     }
+
+    // Sidebar asks for cached-or-fetch
+    if (msg?.type === "QUERY_CACHED_OR_FETCH") {
+        const key = msg.searchText || "";
+        const cached = getCache(key);
+        if (cached) { 
+            sendResponse({ ok: true, body: JSON.stringify(cached), fromCache: true }); 
+            return; 
+        }
+        
+        // Fallback: do a live fetch, cache, and return
+        const res = await fetchWithAuth(EP.QUERY, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ searchText: key })
+        });
+        const text = await res.text();
+        
+        try { 
+            putCache(key, JSON.parse(text)); 
+        } 
+        catch {}
+        
+        sendResponse({ ok: res.ok, body: text, fromCache: false });
+        return;
+    }
+
+    // Old direct fetch path (kept for compatibility)
     if (msg?.type === "QUERY") {
-      const res = await fetchWithAuth(EP.QUERY, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ searchText: msg.searchText || "" })
-      });
-      const text = await res.text();
-      sendResponse({ ok: res.ok, body: text });
-      return;
+        const res = await fetchWithAuth(EP.QUERY, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ searchText: msg.searchText || "" })
+        });
+        const text = await res.text();
+        try { putCache(msg.searchText || "", JSON.parse(text)); } catch {}
+        sendResponse({ ok: res.ok, body: text });
+        return;
     }
   })();
+
   return true; // async
 });
