@@ -1,8 +1,10 @@
 // background.js
 
 import {
+    CACHE_TTL_MS,
+    FLUSH_MS,
+
     EP,
-    store,
     fetchWithAuth,
     dataUrlToBlob,
     timestampName,
@@ -14,7 +16,6 @@ import {
 
 // ---------------------- Caching ----------------------
 
-const CACHE_TTL_MS = 5 * 1000; // 15 sec
 const queryCache = new Map(); // key -> { ts, data }
 
 function putCache(searchText, data) {
@@ -31,7 +32,6 @@ function getCache(searchText) {
 
 // ---------------------- Batching ----------------------
 
-const FLUSH_MS = 1000; // 5 seconds of no new actions -> flush
 let actionBuffer = []; // [{title, domain, tabId, ts}]
 let flushTimer = null;
 
@@ -90,7 +90,7 @@ async function hasResultsFor(searchText) {
         
         const j = await r.json().catch(() => null);
         putCache(searchText, j);
-        console.log("[BG] j =", j);
+        // console.log("[BG] j =", j);
         
         const arr = j?.images || j?.results || j?.items || [];
         return { has: Array.isArray(arr) && arr.length > 0, data: j };

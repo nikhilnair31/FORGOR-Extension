@@ -106,7 +106,7 @@
             .overlay {
                 position: fixed;
                 inset: 0;
-                background: rgba(0,0,0,.7);
+                background: var(--base-0);
                 display: none;
                 align-items: center;
                 justify-content: center;
@@ -117,12 +117,10 @@
             .lightbox {
                 position: relative;
                 max-width: 95vw;
-                max-height: 90vh;
-                outline: 1px solid rgba(255,255,255,.15);
+                /* max-height: 90vh; */
                 background: var(--base-1);
                 border-radius: 0;   /* <-- HARSH corners */
                 overflow: hidden;
-                box-shadow: 0 10px 40px rgba(0,0,0,.5);
             }
             .lightbox img.fullimg {
                 display: block;
@@ -153,6 +151,7 @@
                 background: #a22; 
                 color: #fff;
             }
+            
             #linksBox {
                 padding: 10px 14px;
                 background: var(--base-1);

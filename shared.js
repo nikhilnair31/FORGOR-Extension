@@ -2,6 +2,31 @@
 
 import { SERVER_URL, APP_KEY, USER_AGENT } from "./config.js";
 
+// ---------------------- Vars ----------------------
+
+export const CACHE_TTL_MS = 5 * 1000; // 15 sec to query results
+export const FLUSH_MS = 1000; // 5 seconds of no new actions -> flush
+
+export const PLACEHOLDER_SVG = encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="2424">
+        <rect width="100%" height="100%" fill="#ccc"/>
+    </svg>
+`);
+export const PLACEHOLDER_URL = `data:image/svg+xml;charset=utf-8,${PLACEHOLDER_SVG}`;
+export const SKIP_PATTERNS = [
+    ".com/privacy", 
+    ".com/terms", 
+    ".com/about", 
+    ".com/legal", 
+    ".com/policy", 
+    ".com/tos", 
+    ".com/cookie-use", 
+    ".com/accessibility", 
+    ".com/settings",
+    "brand-assets", 
+    "ads-policies", 
+];
+
 // ---------------------- Endpoints ----------------------
 
 export const EP = {
@@ -147,8 +172,20 @@ export function makeQueryKey(s) {
 export function sanitizeLinkLabel(url) {
     try {
         const u = new URL(url);
+
+        // filter out obvious boilerplate/legal URLs
+        const badPatterns = [
+            "/privacy", "/privacy-policy",
+            "/terms", "/tos", "/terms-of-service",
+            "/cookies", "/cookie-policy"
+        ];
+        if (badPatterns.some(p => u.pathname.toLowerCase().includes(p))) {
+            return null; // signal to skip this link
+        }
+
         return u.hostname.replace(/^www\./, '');
-    } catch {
+    } 
+    catch {
         return url;
     }
 }

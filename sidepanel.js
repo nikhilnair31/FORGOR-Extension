@@ -1,7 +1,17 @@
 // sidepanel.js
 
 import { APP_KEY, USER_AGENT } from "./config.js";
-import { EP, fetchWithAuth, loadImageWithAuth, dataUrlToBlob, sanitizeLinkLabel, resolveHandleToUrl } from "./shared.js";
+import { 
+    PLACEHOLDER_URL,
+    SKIP_PATTERNS,
+
+    EP, 
+    fetchWithAuth, 
+    loadImageWithAuth, 
+    dataUrlToBlob, 
+    sanitizeLinkLabel, 
+    resolveHandleToUrl 
+} from "./shared.js";
 
 // ---------------------- Helpers ----------------------
 
@@ -211,13 +221,8 @@ closeBtnEl.addEventListener("click", closeLightbox);
 
 // ---------------------- Rendering ----------------------
 
-const PLACEHOLDER_SVG = encodeURIComponent(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="2424">
-        <rect width="100%" height="100%" fill="#ccc"/>
-    </svg>
-`);
 
-const PLACEHOLDER_URL = `data:image/svg+xml;charset=utf-8,${PLACEHOLDER_SVG}`;
+
 
 function setRealImage(img, objectUrl, alt = "") {
   img.src = objectUrl;
@@ -248,7 +253,9 @@ function renderLinks(tagsAny) {
     if (!links.length && !handles.length) return;
 
     for (const link of links) {
-        if (!link) continue;
+        if (!link || SKIP_PATTERNS.some(p => link.toLowerCase().includes(p))) continue;
+        console.log(`link: ${link}`);
+
         const a = document.createElement("a");
         a.href = link;
         a.target = "_blank";
@@ -256,6 +263,7 @@ function renderLinks(tagsAny) {
         a.textContent = sanitizeLinkLabel(link);
         box.appendChild(a);
         box.appendChild(document.createElement("br"));
+        console.log(`box:`, box);
     }
 
     for (const handle of handles) {
@@ -270,7 +278,7 @@ function renderLinks(tagsAny) {
         a.textContent = handle;
         box.appendChild(a);
         box.appendChild(document.createElement("br"));
-        console.log(`box: ${JSON.stringify(box)}`);
+        console.log(`box:`, box);
     }
 }
 
