@@ -1,7 +1,7 @@
 // sidepanel.js
 
 import { APP_KEY, USER_AGENT } from "./config.js";
-import { EP, fetchWithAuth, loadImageWithAuth, dataUrlToBlob } from "./shared.js";
+import { EP, fetchWithAuth, loadImageWithAuth, dataUrlToBlob, sanitizeLinkLabel, resolveHandleToUrl } from "./shared.js";
 
 // ---------------------- Helpers ----------------------
 
@@ -12,8 +12,13 @@ async function getActiveTab() {
 
 // ---------------------- Bar ----------------------
 
+const refreshBtnEl = document.getElementById("refreshBtn");
 const shotBtnEl = document.getElementById("shotBtn");
 const metaEl = document.getElementById("meta");
+
+refreshBtnEl?.addEventListener("click", () => {
+    loadImages(true);
+});
 
 shotBtnEl?.addEventListener("click", async () => {
     const origText = shotBtnEl.textContent;
@@ -103,21 +108,31 @@ const deleteBtnEl = document.getElementById("deleteBtn");
 
 let currentFileName = null; // track which file is open
 
-function openLightbox(src, alt = "", fileName = null) {
+function openLightbox(src, alt = "", fileName = null, tags = null) {
     if (!src) return;
+    
+    renderLinks(tags);
+
     fullImgEl.src = src;
     fullImgEl.alt = alt || "";
+    
     currentFileName = fileName || null;
+    
     overlayEl.classList.add("open");
     overlayEl.setAttribute("aria-hidden", "false");
+    
     document.body.style.overflow = "hidden";
+    
     closeBtnEl.focus();
 }
 
 function closeLightbox() {
     overlayEl.classList.remove("open");
     overlayEl.setAttribute("aria-hidden", "true");
+    
     fullImgEl.src = "";
+    
+    document.getElementById("linksBox").innerHTML = "";
     document.body.style.overflow = "";
 }
 
@@ -171,7 +186,8 @@ gridEl.addEventListener("click", async (e) => {
     if (!img) return;
 
     const fileName = img.dataset.fileName || null;
-    openLightbox(img.src, img.alt, fileName);
+    const tags = img.dataset.tags || null;
+    openLightbox(img.src, img.alt, fileName, tags);
 
     // now request the full file
     if (fileName) {
@@ -216,6 +232,48 @@ function setPlaceholder(img, alt = "Image unavailable") {
     img.removeAttribute("loading"); // not needed for data URL
 }
 
+function renderLinks(tagsAny) {
+    const box = document.getElementById("linksBox");
+    box.innerHTML = "";
+    if (!tagsAny) return;
+
+    let tagsObj = {};
+    try { tagsObj = typeof tagsAny === "string" ? JSON.parse(tagsAny) : tagsAny || {}; }
+    catch { return; }
+
+    const appName = tagsObj.app_name || "";
+    const links   = Array.isArray(tagsObj.links) ? tagsObj.links : [];
+    const handles = Array.isArray(tagsObj.account_identifiers) ? tagsObj.account_identifiers : [];
+
+    if (!links.length && !handles.length) return;
+
+    for (const link of links) {
+        if (!link) continue;
+        const a = document.createElement("a");
+        a.href = link;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.textContent = sanitizeLinkLabel(link);
+        box.appendChild(a);
+        box.appendChild(document.createElement("br"));
+    }
+
+    for (const handle of handles) {
+        if (!handle) continue;
+        console.log(`handle: ${handle}`);
+        
+        const url = resolveHandleToUrl(appName, handle);
+        const a = document.createElement("a");
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.textContent = handle;
+        box.appendChild(a);
+        box.appendChild(document.createElement("br"));
+        console.log(`box: ${JSON.stringify(box)}`);
+    }
+}
+
 async function renderSequential(items) {
     gridEl.innerHTML = "";
     for (const it of items) {
@@ -231,6 +289,7 @@ async function renderSequential(items) {
         setPlaceholder(img, it.caption || it.alt || "Image");
 
         if (it.file_name) img.dataset.fileName = it.file_name;
+        if (it.tags) img.dataset.tags = typeof it.tags === "string" ? it.tags : JSON.stringify(it.tags);
 
         card.appendChild(img);
         gridEl.appendChild(card);
@@ -245,40 +304,11 @@ async function renderSequential(items) {
         }
     }
 }
-
 function render(items) {
     gridEl.innerHTML = "";
     if (!items?.length) {
         gridEl.innerHTML = `<div class="empty">No images found.</div>`;
         return;
-    }
-    for (const it of items) {
-        const card = document.createElement("div");
-        card.className = "card";
-
-        const img = document.createElement("img");
-        img.className = "thumb";
-        img.decoding = "async";
-        img.loading = "lazy";
-        setPlaceholder(img, it.caption || it.alt || "Image");
-
-        // store original filename so we can fetch full file later
-        if (it.file_name) img.dataset.fileName = it.file_name;
-
-        loadImageWithAuth(it.thumbnailUrl)
-        .then(src => setRealImage(img, src, it.caption || it.alt || "Image"))
-        .catch(() => { img.alt = "Could not load image"; });
-
-        card.appendChild(img);
-
-        const caption = it.caption || it.source || it.title || "";
-        if (caption) {
-            const cap = document.createElement("div");
-            cap.className = "caption";
-            cap.textContent = caption;
-            card.appendChild(cap);
-        }
-        gridEl.appendChild(card);
     }
 }
 
@@ -327,7 +357,8 @@ async function loadImages(spin = false) {
         .map(x => {
             const file = x.file_name || x.filename || null;
             const thumb = x.thumbnail_name ? `${EP.THUMBNAIL}/${encodeURIComponent(x.thumbnail_name)}` : null;
-            return file && thumb ? { file_name: file, thumbnailUrl: thumb } : null;
+            const tags  = x.tags ?? null;
+            return file && thumb ? { file_name: file, thumbnailUrl: thumb, tags: tags } : null;
         })
         .filter(Boolean);
 

@@ -14,7 +14,7 @@ import {
 
 // ---------------------- Caching ----------------------
 
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min
+const CACHE_TTL_MS = 5 * 1000; // 15 sec
 const queryCache = new Map(); // key -> { ts, data }
 
 function putCache(searchText, data) {

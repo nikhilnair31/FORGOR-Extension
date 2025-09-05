@@ -141,3 +141,29 @@ export async function clearBadge() {
 export function makeQueryKey(s) {
     return (s || "").trim().toLowerCase();
 }
+
+// ---------------------- URLs ----------------------
+
+export function sanitizeLinkLabel(url) {
+    try {
+        const u = new URL(url);
+        return u.hostname.replace(/^www\./, '');
+    } catch {
+        return url;
+    }
+}
+
+export function resolveHandleToUrl(appName, handle) {
+    if (!appName || !handle) return handle;
+    switch (appName.toLowerCase()) {
+        case "twitter":
+        case "x":
+            return `https://x.com/${handle.replace(/^@/, "")}`;
+        case "instagram":
+            return `https://instagram.com/${handle.replace(/^@/, "")}`;
+        case "tiktok":
+            return `https://tiktok.com/@${handle.replace(/^@/, "")}`;
+        default:
+            return handle;
+    }
+}
