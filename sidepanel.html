@@ -36,7 +36,9 @@
                 gap: 8px;
                 z-index: 1; 
                 background-color: var(--base-1);
-                flex-direction: column;
+                flex-direction: row;
+                justify-content: flex-end;
+                align-items: center;
             }
             #meta { 
                 font-size: 12px; 
@@ -60,17 +62,15 @@
                 color: var(--base-2); 
                 text-align: center; 
             }
-            button.refresh { 
-                padding: 8px 10px; 
-                font-size: 13px; 
+            button { 
+                padding: 12px; 
+                font-family: "VenusCormier", system-ui, sans-serif;
                 cursor: pointer; 
                 background: var(--accent-1t);
                 border: none;
                 border-radius: 0;   /* <-- HARSH corners */
                 color: var(--accent-0x);
             }
-
-            html { scrollbar-gutter: stable; }
 
             /* placeholder styling */
             .thumb[data-placeholder="1"] {
@@ -136,6 +136,7 @@
                 top: 8px;
                 right: 8px;
                 border: none;
+                font-family: "VenusCormier", system-ui, sans-serif;
                 background: var(--base-0);
                 color: var(--accent-0x);
                 font: 600 14px system-ui, sans-serif;
@@ -180,9 +181,7 @@
     </head>
     <body>
         <header>
-            <div id="app_title"><strong>FORGOR</strong></div>
-            <button id="refreshBtn" class="refresh" type="button" title="Refresh">Refresh</button>
-            <button id="shotBtn" class="refresh" type="button" title="Save">Save</button>
+            <button id="refreshBtn" type="button" title="Refresh">REFRESH</button>
             <div id="meta" aria-live="polite"></div>
         </header>
         <main id="grid"></main>

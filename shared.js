@@ -23,8 +23,11 @@ export const SKIP_PATTERNS = [
     ".com/cookie-use", 
     ".com/accessibility", 
     ".com/settings",
+    ".com/resources",
+    "more-info", 
     "brand-assets", 
     "ads-policies", 
+    "...", 
 ];
 
 // ---------------------- Endpoints ----------------------
@@ -75,54 +78,103 @@ export function baseHeaders(extra = {}) {
     };
 }
 
+function tzHeader() {
+    try {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    } catch {
+        return "UTC";
+    }
+}
+
 // ---------------------- Auth Fetch ----------------------
 
+let refreshInFlight = null;
+
+async function refreshAccessToken() {
+    // If a refresh is already happening, join it
+    if (refreshInFlight) return refreshInFlight;
+
+    refreshInFlight = (async () => {
+        const { refresh_token } = await getTokens();
+        if (!refresh_token) {
+            await clearTokens();
+            throw new Error("NO_REFRESH_TOKEN");
+        }
+
+        const res = await fetch(EP.REFRESH, {
+            method: "POST",
+            headers: baseHeaders({
+                "Content-Type": "application/json",
+                "X-Timezone": tzHeader(),
+            }),
+            body: JSON.stringify({ refresh_token }),
+        });
+
+        if (!res.ok) {
+            await clearTokens();
+            throw new Error(`REFRESH_FAILED_${res.status}`);
+        }
+
+        // Expect { access_token: "..." }
+        let json = {};
+        try {
+            json = await res.json();
+        } catch {
+            /* noop */
+        }
+
+        const newAccess = json?.access_token;
+        if (!newAccess) {
+            await clearTokens();
+            throw new Error("REFRESH_NO_ACCESS");
+        }
+
+        await setTokens(newAccess, refresh_token);
+        return newAccess;
+    })();
+
+    try {
+        const token = await refreshInFlight;
+        return token;
+    } 
+    
+    finally {
+        // Ensure next refresh can start fresh
+        refreshInFlight = null;
+    }
+}
+
 export async function fetchWithAuth(url, init = {}) {
-    const { access_token, refresh_token } = await getTokens();
+    const { access_token } = await getTokens();
     if (!access_token) throw new Error("NO_TOKEN");
 
-    const first = await fetch(url, {
-        ...init,
-        headers: {
-        ...baseHeaders(init.headers),
-        "Authorization": `Bearer ${access_token}`
+    const doFetch = async (token) =>
+        fetch(url, {
+            ...init,
+            headers: {
+                ...baseHeaders(init.headers),
+                Authorization: `Bearer ${token}`,
+            },
+        });
+
+    // First attempt
+    let res = await doFetch(access_token);
+    if (res.status !== 401) return res; // covers 200.., 403, etc.
+
+    // Attempt refresh (Android parity)
+    try {
+        const newAccess = await refreshAccessToken();
+        res = await doFetch(newAccess);
+        // If still 401 after refresh, purge tokens (session invalid)
+        if (res.status === 401) {
+            await clearTokens();
         }
-    });
-
-    if (first.status !== 401) return first;
-
-    // Try refresh
-    if (!refresh_token) return first;
-
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-    const ref = await fetch(EP.REFRESH, {
-        method: "POST",
-        headers: baseHeaders({ "Content-Type": "application/json", "X-Timezone": tz }),
-        body: JSON.stringify({ refresh_token })
-    });
-
-    if (!ref.ok) {
+        return res;
+    } catch {
+        // Refresh failed → clear tokens and return original 401
         await clearTokens();
-        return first;
+        return res;
     }
-
-    const refJson = await ref.json().catch(() => ({}));
-    const newAccess = refJson?.access_token;
-    if (!newAccess) {
-        await clearTokens();
-        return first;
-    }
-
-    await setTokens(newAccess, refresh_token);
-
-    // Retry original
-    return fetch(url, {
-        ...init,
-        headers: {
-        ...baseHeaders(init.headers),
-        "Authorization": `Bearer ${newAccess}`
-        }
-    });
 }
 
 // ---------------------- Blobs & Names ----------------------

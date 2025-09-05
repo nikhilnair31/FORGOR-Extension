@@ -23,54 +23,10 @@ async function getActiveTab() {
 // ---------------------- Bar ----------------------
 
 const refreshBtnEl = document.getElementById("refreshBtn");
-const shotBtnEl = document.getElementById("shotBtn");
 const metaEl = document.getElementById("meta");
 
 refreshBtnEl?.addEventListener("click", () => {
     loadImages(true);
-});
-
-shotBtnEl?.addEventListener("click", async () => {
-    const origText = shotBtnEl.textContent;
-    const disable = (t) => { shotBtnEl.disabled = true; shotBtnEl.textContent = t; };
-    const enable  = ()  => { shotBtnEl.disabled = false; shotBtnEl.textContent = origText; };
-
-    try {
-        const tab = await getActiveTab();
-        if (!tab) throw new Error("No active tab");
-
-        disable("Capturing…");
-        setMeta("Capturing visible area…");
-
-        const dataUrl = await captureVisibleTab();
-        const blob = dataUrlToBlob(dataUrl);
-
-        disable("Uploading…");
-        setMeta("Uploading screenshot…");
-
-        const res = await uploadScreenshotBlob(blob);
-        console.log(`res: ${JSON.stringify(res)}`);
-
-        setMeta("Saved! Processing…");
-        // Light refresh so the new item appears (if your backend is synchronous it’ll show immediately)
-        loadImages(true);
-    } 
-    catch (err) {
-        console.warn("Capture/upload failed:", err);
-        setMeta("Could not capture or upload (permissions or page restricted).");
-        
-        if (!gridEl.firstChild) {
-            const msg = document.createElement("div");
-            msg.className = "empty";
-            msg.textContent = "Could not capture or upload (permissions or page restricted).";
-            gridEl.appendChild(msg);
-        }
-    } 
-    finally {
-        enable();
-        // Clear status after a moment
-        setTimeout(() => setMeta(""), 1500);
-    }
 });
 
 function setMeta(text) { if (metaEl) metaEl.textContent = text || ""; }
