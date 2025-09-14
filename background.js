@@ -8,6 +8,7 @@ import {
     fetchWithAuth,
     dataUrlToBlob,
     timestampName,
+    refreshAccessToken,
     getTokens,
     setBadge,
     clearBadge,
@@ -81,6 +82,11 @@ async function flushActions() {
 
 async function hasResultsFor(searchText) {
     try {
+        const { access_token, refresh_token } = await getTokens();
+        if (!access_token && !refresh_token) {
+            return { has: false, data: null };
+        }
+
         const r = await fetchWithAuth(EP.QUERY, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -138,8 +144,32 @@ async function uploadImageUrl({ imageUrl, pageUrl = "" }) {
 chrome.runtime.onInstalled.addListener(async (details) => {
     console.log("[BG] onInstalled", details);
     if (details.reason === "install") {
-        console.log("[BG] Opening login.html");
+        console.log("[BG] Opening login.html...");
         await chrome.tabs.create({ url: chrome.runtime.getURL("login.html") });
+    }
+    if (details.reason === "update") {
+        console.log("[BG] Testing tokens...");
+        const { access_token, refresh_token } = await getTokens();
+        console.log(`access_token: ${access_token} | refresh_token: ${refresh_token}`);
+        
+        if (!access_token && refresh_token) {
+            // todo: no access token but has refresh token so refreshing the access token
+            console.log(`no access token but has refresh token so refreshing the access token`);
+            try {
+                const newAccess = await refreshAccessToken();
+                console.log("[BG] Refreshed access token OK:", newAccess ? "yes" : "no");
+            } catch (err) {
+                console.warn("[BG] Refresh failed, clearing tokens", err);
+                await clearTokens();
+                await chrome.tabs.create({ url: chrome.runtime.getURL("login.html") });
+            }
+            
+        }
+        if (!access_token || !refresh_token) {
+            // todo: no access token or refresh token so prompt re-login
+            console.log(`no access token or refresh token so prompt re-login`);
+            await chrome.tabs.create({ url: chrome.runtime.getURL("login.html") });
+        }
     }
 });
 
@@ -163,7 +193,7 @@ chrome.action.onClicked.addListener((tab) => {
 chrome.tabs.onActivated.addListener(async ({ tabId }) => {
     try {
         const tab = await chrome.tabs.get(tabId);
-        if (!tab?.url) { queueUserAction({ title: "", domain: "", tabId }); return; }
+        if (!tab?.url && !loginTabOpened) { queueUserAction({ title: "", domain: "", tabId }); return; }
         let domain = ""; try { domain = new URL(tab.url).hostname; } catch {}
         queueUserAction({ title: tab.title || "", domain, tabId });
     } catch (e) {
@@ -270,52 +300,67 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
 // ---------------------- General ----------------------
 
+let loginTabOpened = false;
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  (async () => {
-    if (msg?.type === "GET_TOKENS") {
-        sendResponse(await getTokens()); 
-        return;
-    }
-
-    // Sidebar asks for cached-or-fetch
-    if (msg?.type === "QUERY_CACHED_OR_FETCH") {
-        const key = msg.searchText || "";
-        const cached = getCache(key);
-        if (cached) { 
-            sendResponse({ ok: true, body: JSON.stringify(cached), fromCache: true }); 
-            return; 
+    (async () => {
+        console.log(`msg: ${msg} | loginTabOpened: ${loginTabOpened}`);
+        
+        if (msg?.type === "PROMPT_LOGIN") {
+            if (!loginTabOpened) {
+                loginTabOpened = true;
+                chrome.tabs.create({ url: chrome.runtime.getURL("login.html") })
+                    .catch(e => console.warn("[AUTH] Failed to open login tab", e));
+                setTimeout(() => { loginTabOpened = false; }, 10000);
+            }
+            sendResponse({ ok: true });
+            return;
         }
-        
-        // Fallback: do a live fetch, cache, and return
-        const res = await fetchWithAuth(EP.QUERY, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ searchText: key })
-        });
-        const text = await res.text();
-        
-        try { 
-            putCache(key, JSON.parse(text)); 
-        } 
-        catch {}
-        
-        sendResponse({ ok: res.ok, body: text, fromCache: false });
-        return;
-    }
 
-    // Old direct fetch path (kept for compatibility)
-    if (msg?.type === "QUERY") {
-        const res = await fetchWithAuth(EP.QUERY, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ searchText: msg.searchText || "" })
-        });
-        const text = await res.text();
-        try { putCache(msg.searchText || "", JSON.parse(text)); } catch {}
-        sendResponse({ ok: res.ok, body: text });
-        return;
-    }
-  })();
+        if (msg?.type === "GET_TOKENS") {
+            sendResponse(await getTokens()); 
+            return;
+        }
 
-  return true; // async
+        // Sidebar asks for cached-or-fetch
+        if (msg?.type === "QUERY_CACHED_OR_FETCH") {
+            const key = msg.searchText || "";
+            const cached = getCache(key);
+            if (cached) { 
+                sendResponse({ ok: true, body: JSON.stringify(cached), fromCache: true }); 
+                return; 
+            }
+            
+            // Fallback: do a live fetch, cache, and return
+            const res = await fetchWithAuth(EP.QUERY, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ searchText: key })
+            });
+            const text = await res.text();
+            
+            try { 
+                putCache(key, JSON.parse(text)); 
+            } 
+            catch {}
+            
+            sendResponse({ ok: res.ok, body: text, fromCache: false });
+            return;
+        }
+
+        // Old direct fetch path (kept for compatibility)
+        if (msg?.type === "QUERY") {
+            const res = await fetchWithAuth(EP.QUERY, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ searchText: msg.searchText || "" })
+            });
+            const text = await res.text();
+            try { putCache(msg.searchText || "", JSON.parse(text)); } catch {}
+            sendResponse({ ok: res.ok, body: text });
+            return;
+        }
+    })();
+
+    return true; // async
 });

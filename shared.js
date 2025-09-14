@@ -33,16 +33,16 @@ export const SKIP_PATTERNS = [
 // ---------------------- Endpoints ----------------------
 
 export const EP = {
-  UPLOAD_IMAGE:     `${SERVER_URL}/api/upload/image`,
-  UPLOAD_IMAGEURL:  `${SERVER_URL}/api/upload/imageurl`,
-  DELETE:           `${SERVER_URL}/api/delete/file`,
-  QUERY:            `${SERVER_URL}/api/check/text`,
-  FILE:             `${SERVER_URL}/api/get_file`,
-  THUMBNAIL:        `${SERVER_URL}/api/get_thumbnail`,
-  LOGIN:            `${SERVER_URL}/api/login`,
-  REGISTER:         `${SERVER_URL}/api/register`,
-  REFRESH:          `${SERVER_URL}/api/refresh_token`,
-  GET_SAVES:        `${SERVER_URL}/api/get_saves_left`
+    UPLOAD_IMAGE:     `${SERVER_URL}/api/upload/image`,
+    UPLOAD_IMAGEURL:  `${SERVER_URL}/api/upload/imageurl`,
+    DELETE:           `${SERVER_URL}/api/delete/file`,
+    QUERY:            `${SERVER_URL}/api/check/text`,
+    FILE:             `${SERVER_URL}/api/get_file`,
+    THUMBNAIL:        `${SERVER_URL}/api/get_thumbnail`,
+    LOGIN:            `${SERVER_URL}/api/login`,
+    REGISTER:         `${SERVER_URL}/api/register`,
+    REFRESH:          `${SERVER_URL}/api/refresh_token`,
+    GET_SAVES:        `${SERVER_URL}/api/get_saves_left`
 };
 
 // ---------------------- Storage ----------------------
@@ -90,7 +90,7 @@ function tzHeader() {
 
 let refreshInFlight = null;
 
-async function refreshAccessToken() {
+export async function refreshAccessToken() {
     // If a refresh is already happening, join it
     if (refreshInFlight) return refreshInFlight;
 

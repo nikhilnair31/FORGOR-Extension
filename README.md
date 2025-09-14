@@ -4,10 +4,11 @@
 
 ### To-Do
 
+- [ ] Show toast when image saved successfully
+- [ ] Add tracking functions
 - [ ] Context menu option to find similar to view
 - [ ] Improve buffer system to avoid constant suggestions
 - [ ] Improve login UI
-- [ ] Account for access/refresh token expiration
 
 ### Skipped
 
@@ -15,6 +16,7 @@
 
 ### Done
 
+- [x] Account for access/refresh token expiration
 - [x] Context menu option to take screenshot and upload
 - [x] Context menu option to upload image hover over
 - [x] Save check results and use that when sidebar opened
