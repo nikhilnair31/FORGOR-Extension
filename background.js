@@ -67,8 +67,7 @@ async function flushActions() {
     try {
         const { has } = await hasResultsFor(batchedSearchText);
         if (has) {
-            await chrome.action.setBadgeText({ text: "●" });
-            await chrome.action.setBadgeBackgroundColor({ color: "#3b82f6" });
+            setBadge("●", "#3b82f6")
         } 
         else {
             await clearBadge();
@@ -238,7 +237,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     // NEW: upload the image the user right-clicked
     if (info.menuItemId === "forgor-upload-image-url") {
         try {
-            await setBadge("…");
+            await setBadge("…", "#76f63bff");
 
             const pageUrl = info.pageUrl || (tab && tab.url) || "";
             const srcUrl  = info.srcUrl || "";
@@ -272,7 +271,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     // Existing screenshot menu
     if (info.menuItemId === "forgor-capture-upload") {
         try {
-            await setBadge("…");
+            await setBadge("…", "#76f63bff");
 
             // Capture visible area of the current window's active tab
             const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });

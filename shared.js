@@ -205,12 +205,21 @@ export async function loadImageWithAuth(url) {
 
 // ---------------------- Badges (used by background) ----------------------
 
-export async function setBadge(text) {
-    try { await chrome.action.setBadgeText({ text }); } catch {}
+export async function setBadge(text = "", color = null) {
+    try { 
+        await chrome.action.setBadgeText({ text }); 
+        await chrome.action.setBadgeBackgroundColor({ color }); 
+    } 
+    catch {
+    }
 }
 
 export async function clearBadge() {
-    try { await chrome.action.setBadgeText({ text: "" }); } catch {}
+    try { 
+        await chrome.action.setBadgeText({ text: "" }); 
+        await chrome.action.setBadgeBackgroundColor({ color: null }); 
+    } 
+    catch {}
 }
 
 // ---------------------- Small utils ----------------------
