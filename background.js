@@ -95,7 +95,6 @@ async function hasResultsFor(searchText) {
         
         const j = await r.json().catch(() => null);
         putCache(searchText, j);
-        // console.log("[BG] j =", j);
         
         const arr = j?.images || j?.results || j?.items || [];
         return { has: Array.isArray(arr) && arr.length > 0, data: j };
@@ -179,17 +178,15 @@ async function searchSimilarContent(payload) {
 chrome.runtime.onInstalled.addListener(async (details) => {
     console.log("[BG] onInstalled", details);
     if (details.reason === "install") {
-        console.log("[BG] Opening login.html...");
+        console.log("[BG] Installed so opening login.html...");
         await chrome.tabs.create({ url: chrome.runtime.getURL("login.html") });
     }
     if (details.reason === "update") {
-        console.log("[BG] Testing tokens...");
+        console.log("[BG] Updated so testing tokens...");
         const { access_token, refresh_token } = await getTokens();
-        // console.log(`access_token: ${access_token} | refresh_token: ${refresh_token}`);
         
         if (!access_token && refresh_token) {
-            // todo: no access token but has refresh token so refreshing the access token
-            console.log(`no access token but has refresh token so refreshing the access token`);
+            console.log(`[BG] no access token but has refresh token so refreshing the access token`);
             try {
                 const newAccess = await refreshAccessToken();
                 console.log("[BG] Refreshed access token OK:", newAccess ? "yes" : "no");
@@ -200,10 +197,12 @@ chrome.runtime.onInstalled.addListener(async (details) => {
             }
             
         }
-        if (!access_token || !refresh_token) {
-            // todo: no access token or refresh token so prompt re-login
-            console.log(`no access token or refresh token so prompt re-login`);
+        else if (!access_token || !refresh_token) {
+            console.log(`[BG] No access token or refresh token so prompt re-login`);
             await chrome.tabs.create({ url: chrome.runtime.getURL("login.html") });
+        }
+        else if (access_token && refresh_token) {
+            console.log(`[BG] Got both tokens!`);
         }
     }
 });
@@ -211,11 +210,8 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 // ---------------------- Extension Icon ----------------------
 
 chrome.action.onClicked.addListener((tab) => {
-    console.log("[BG] Toolbar icon clicked");
     chrome.sidePanel.setOptions({ path: "sidepanel.html", enabled: true }, async () => {
-        console.log("[BG] sidePanel.setOptions done");
         await chrome.sidePanel.open({ windowId: tab.windowId });
-        console.log("[BG] sidePanel.open called");
 
         // Clear badge when panel is opened
         await clearBadge();
@@ -372,8 +368,6 @@ let loginTabOpened = false;
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     (async () => {
-        console.log(`msg: ${msg} | loginTabOpened: ${loginTabOpened}`);
-        
         if (msg?.type === "PROMPT_LOGIN") {
             if (!loginTabOpened) {
                 loginTabOpened = true;
