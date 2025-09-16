@@ -96,50 +96,6 @@
             @media (max-width: 600px)  { #grid { column-width: 180px; } }
 
             /* Lightbox */
-            .overlay {
-                position: fixed;
-                inset: 0;
-                background: var(--base-0);
-                display: none;
-                align-items: center;
-                justify-content: center;
-                z-index: 1000;
-            }
-            .overlay.open { display: flex; }
-
-            .lightbox {
-                position: relative;
-                max-width: 95vw;
-                /* max-height: 90vh; */
-                background: var(--base-1);
-                border-radius: 0;   /* <-- HARSH corners */
-                overflow: hidden;
-            }
-            .lightbox img.fullimg {
-                display: block;
-                max-width: 95vw;
-                max-height: 90vh;
-                width: auto;
-                height: auto;
-                object-fit: contain;
-                background: var(--base-0);
-            }
-            .lightbox-btn {
-                position: absolute;
-                top: 8px;
-                right: 8px;
-                border: none;
-                font-family: "VenusCormier", system-ui, sans-serif;
-                background: var(--base-0);
-                color: var(--accent-0x);
-                font: 600 14px system-ui, sans-serif;
-                padding: 8px 10px;
-                border-radius: 0;   /* <-- HARSH corners */
-                cursor: pointer;
-            }
-            .lightbox-btn:focus-visible { 
-                color: var(--accent-1);
-            }
             #deleteBtn {
                 right: 80px; 
                 background: #a22; 
@@ -180,6 +136,65 @@
                 color: var(--accent-1);
                 text-decoration: underline;
             }
+
+            #overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.95);
+            display: none;
+            flex-direction: column;
+            z-index: 9999;
+            }
+            #overlay.open { display: flex; }
+
+            .lightbox-toolbar {
+                position: sticky;
+                top: 0;
+                display: flex;
+                align-items: center;
+                background: var(--base-1);
+                padding: 10px;
+                gap: 10px;
+                z-index: 2;
+            }
+            .lightbox-toolbar .spacer { flex: 1; }
+            .lightbox-toolbar button {
+            border: none;
+            padding: 8px 14px;
+            font-size: 14px;
+            cursor: pointer;
+            font-family: "VenusCormier", system-ui, sans-serif;
+            }
+            #backBtn   { background: var(--base-2); color: white; }
+            #closeBtn  { background: var(--accent-1); color: white; }
+            #deleteBtn { background: #b91c1c; color: white; }
+
+            .lightbox-content {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                overflow: auto;
+                padding: 20px;
+                background: var(--base-0);
+            }
+            #fullImg {
+            max-width: 100%;
+            max-height: 80vh;
+            object-fit: contain;
+            cursor: zoom-in;
+            transition: transform 0.2s ease;
+            }
+            #fullImg.zoomed {
+            transform: scale(2);
+            cursor: zoom-out;
+            }
+            #linksBox {
+            margin-top: 20px;
+            text-align: center;
+            }
+
         </style>
     </head>
     <body>
@@ -187,14 +202,19 @@
             <button id="refreshBtn" type="button" title="Refresh">REFRESH</button>
         </header>
         <main id="grid"></main>
-        <div id="overlay" class="overlay" aria-hidden="true">
-            <div class="lightbox" role="dialog" aria-modal="true" aria-label="Image preview">
-                <button class="lightbox-btn" id="closeBtn" type="button">CLOSE</button>
-                <button class="lightbox-btn" id="deleteBtn" type="button">DELETE</button>
-                <img class="fullimg" id="fullImg" alt="" />
-                <div id="linksBox" class="links"></div>
+        <div id="overlay" aria-hidden="true">
+            <div class="lightbox-toolbar">
+                <button id="backBtn">BACK</button>
+                <div class="spacer"></div>
+                <button id="deleteBtn">DELETE</button>
+            </div>
+
+            <div class="lightbox-content">
+                <img id="fullImg" alt="" />
+                <div id="linksBox"></div>
             </div>
         </div>
+
         <script type="module" src="sidepanel.js"></script>
     </body>
 </html>

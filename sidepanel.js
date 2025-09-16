@@ -31,7 +31,7 @@ refreshBtnEl?.addEventListener("click", () => {
 const gridEl = document.getElementById("grid");
 const overlayEl = document.getElementById("overlay");
 const fullImgEl = document.getElementById("fullImg");
-const closeBtnEl = document.getElementById("closeBtn");
+const backBtnEl = document.getElementById("backBtn");
 const deleteBtnEl = document.getElementById("deleteBtn");
 
 let currentFileName = null; // track which file is open
@@ -135,7 +135,12 @@ overlayEl.addEventListener("click", (e) => {
     if (e.target === overlayEl) closeLightbox();
 });
 
-closeBtnEl.addEventListener("click", closeLightbox);
+// Zoom toggle
+fullImgEl.addEventListener("click", () => {
+    fullImgEl.classList.toggle("zoomed");
+});
+
+backBtnEl.addEventListener("click", closeLightbox);
 
 // ---------------------- Rendering ----------------------
 
