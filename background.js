@@ -153,27 +153,28 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     }
     if (details.reason === "update") {
         console.log("[BG] Updated so testing tokens...");
-        const { access_token, refresh_token } = await getTokens();
+        await chrome.tabs.create({ url: chrome.runtime.getURL("login.html") });
+        // const { access_token, refresh_token } = await getTokens();
         
-        if (!access_token && refresh_token) {
-            console.log(`[BG] no access token but has refresh token so refreshing the access token`);
-            try {
-                const newAccess = await refreshAccessToken();
-                console.log("[BG] Refreshed access token OK:", newAccess ? "yes" : "no");
-            } catch (err) {
-                console.warn("[BG] Refresh failed, clearing tokens", err);
-                await clearTokens();
-                await chrome.tabs.create({ url: chrome.runtime.getURL("login.html") });
-            }
+        // if (!access_token && refresh_token) {
+        //     console.log(`[BG] no access token but has refresh token so refreshing the access token`);
+        //     try {
+        //         const newAccess = await refreshAccessToken();
+        //         console.log("[BG] Refreshed access token OK:", newAccess ? "yes" : "no");
+        //     } catch (err) {
+        //         console.warn("[BG] Refresh failed, clearing tokens", err);
+        //         await clearTokens();
+        //         await chrome.tabs.create({ url: chrome.runtime.getURL("login.html") });
+        //     }
             
-        }
-        else if (!access_token || !refresh_token) {
-            console.log(`[BG] No access token or refresh token so prompt re-login`);
-            await chrome.tabs.create({ url: chrome.runtime.getURL("login.html") });
-        }
-        else if (access_token && refresh_token) {
-            console.log(`[BG] Got both tokens!`);
-        }
+        // }
+        // else if (!access_token || !refresh_token) {
+        //     console.log(`[BG] No access token or refresh token so prompt re-login`);
+        //     await chrome.tabs.create({ url: chrome.runtime.getURL("login.html") });
+        // }
+        // else if (access_token && refresh_token) {
+        //     console.log(`[BG] Got both tokens!`);
+        // }
     }
 });
 
