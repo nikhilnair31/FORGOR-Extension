@@ -142,36 +142,6 @@ async function uploadImageUrl({ imageUrl, pageUrl = "" }) {
 
     return res.json().catch(() => ({}));
 }
-async function searchSimilarContent(payload) {
-    try {
-        const res = await fetchWithAuth(EP.SIMILAR_CONTENT, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
-
-        if (!res.ok) throw new Error(`Similar search failed: ${res.status}`);
-
-        const data = await res.json().catch(() => ({}));
-        console.log('data');
-        console.log(data);
-        
-        // Open side panel with results if any
-        if (data.results && data.results.length > 0) {
-            chrome.sidePanel.setOptions({ path: "sidepanel.html", enabled: true }, async () => {
-                await chrome.sidePanel.open({ windowId: (await chrome.tabs.get(payload.tab_id)).windowId });
-                chrome.runtime.sendMessage({type: "DISPLAY_SIMILAR_RESULTS", results: data.results, queryContent: data.query_content});
-            });
-            await setBadge("✓", "#32cd32"); // Green for success
-        } else {
-            await setBadge("0", "#808080"); // Grey for no results
-        }
-    } 
-    catch (err) {
-        console.error("[BG] searchSimilarContent error", err);
-        await setBadge("!", "#ff0000"); // Red for error
-    }
-}
 
 // ---------------------- Login ----------------------
 
@@ -263,17 +233,10 @@ chrome.runtime.onInstalled.addListener(() => {
         title: "FORGOR: Upload this image",
         contexts: ["image"]
     });
-    
-    // NEW: Search similar posts based on visible screen (screenshot)
-    chrome.contextMenus.create({
-        id: "forgor-search-similar",
-        title: "FORGOR: Search similar (screenshot)",
-        contexts: ["page", "selection"] // Can be used on any part of the page or a selection
-    });
 });
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-    // NEW: upload the image the user right-clicked
+    // upload the image the user right-clicked
     if (info.menuItemId === "forgor-upload-image-url") {
         try {
             await setBadge("...", "#ffa500");
@@ -327,39 +290,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         }
         return;
     };
-    // NEW: Handle "Search similar (screenshot)"
-    if (info.menuItemId === "forgor-search-similar") {
-        try {
-            setBadge("...", "#ffa500");
-
-            // Open panel right away (satisfies user gesture requirement)
-            chrome.sidePanel.setOptions({ path: "sidepanel.html", enabled: true }, () => {
-            chrome.sidePanel.open({ tabId: tab.id }).then(() => {
-                // After panel is open, do async work
-                chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" })
-                .then(dataUrl => {
-                    const payload = {
-                        image_b64: dataUrl.split(",")[1],
-                        page_url: info.pageUrl || tab.url || "",
-                        page_title: tab.title || "",
-                        tabId: tab.id
-                    };
-                    return searchSimilarContent(payload);
-                })
-                .catch(err => {
-                    console.error("Error after opening panel:", err);
-                    setBadge("ERR", "#ff0000");
-                });
-            });
-            });
-        } 
-        catch (err) {
-            console.error("Error capturing and searching similar from screenshot:", err);
-            await setBadge("ERR", "#ff0000");
-            setTimeout(() => clearBadge(), 3000);
-        }
-        return;
-    }
 });
 
 // ---------------------- General ----------------------
