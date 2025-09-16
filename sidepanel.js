@@ -199,6 +199,12 @@ function renderLinks(tagsAny) {
 
 async function renderSequential(items) {
     gridEl.innerHTML = "";
+
+    if (!items?.length) {
+        gridEl.innerHTML = `<div class="empty">NO RELATED IMAGES FOUND</div>`;
+        return;
+    }
+
     for (const it of items) {
         console.log(`it: ${JSON.stringify(it)}`);
         
@@ -259,7 +265,7 @@ async function loadImages(spin = false) {
     const title = tab.title || "";
     let domain = ""; try { domain = new URL(tab.url).hostname || ""; } catch {}
 
-    if (spin) gridEl.innerHTML = `<div class="empty">Loading…</div>`;
+    if (spin) gridEl.innerHTML = `<div class="empty">LOADING...</div>`;
 
     const { access_token } = await getTokens();
     if (!access_token) { render([]); return; }

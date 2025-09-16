@@ -36,15 +36,8 @@
                 gap: 8px;
                 z-index: 1; 
                 background-color: var(--base-1);
-                flex-direction: row;
-                justify-content: flex-end;
-                align-items: center;
-            }
-            #meta { 
-                font-size: 12px; 
-                color: var(--base-2); 
-                margin-top: 4px; 
-                word-break: break-word; 
+                flex-direction: column;   /* stack button + meta vertically */
+                align-items: stretch;     /* let children take full width */
             }
             .card { 
                 border: 1px solid rgba(255,255,255,.1); 
@@ -163,6 +156,16 @@
                 justify-content: flex-start;
                 align-items: center;
             }
+            #refreshBtn {
+                width: 100%;
+                padding: 12px;
+                font-family: "VenusCormier", system-ui, sans-serif;
+                cursor: pointer;
+                background: var(--accent-0);
+                border: none;
+                border-radius: 0;
+                color: var(--accent-1);
+            }
 
             #linksBox a {
                 display: block;
@@ -182,7 +185,6 @@
     <body>
         <header>
             <button id="refreshBtn" type="button" title="Refresh">REFRESH</button>
-            <div id="meta" aria-live="polite"></div>
         </header>
         <main id="grid"></main>
         <div id="overlay" class="overlay" aria-hidden="true">
