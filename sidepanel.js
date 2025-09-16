@@ -1,6 +1,6 @@
 // sidepanel.js
 
-import { APP_KEY, USER_AGENT } from "./config.js";
+import { USER_AGENT } from "./config.js";
 import { 
     PLACEHOLDER_URL,
     SKIP_PATTERNS,
@@ -56,7 +56,7 @@ async function uploadScreenshotBlob(blob, filename = `screenshot_${Date.now()}.p
 
     const resp = await fetchWithAuth(EP.UPLOAD_IMAGE, {
         method: "POST",
-        headers: { "User-Agent": USER_AGENT, "X-App-Key": APP_KEY }, // baseHeaders is applied inside fetchWithAuth too
+        headers: { "User-Agent": USER_AGENT}, // baseHeaders is applied inside fetchWithAuth too
         body: form
     });
     if (!resp.ok) throw new Error(`Upload failed: ${resp.status}`);

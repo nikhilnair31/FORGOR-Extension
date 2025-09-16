@@ -108,22 +108,28 @@ async function hasResultsFor(searchText) {
 // ---------------------- Server ----------------------
 
 async function uploadScreenshot({ dataUrl, pageUrl = "", pageTitle = "", selectionText = "" }) {
-    if (!dataUrl) throw new Error("No dataUrl provided");
-    
-    const blob = dataUrlToBlob(dataUrl);
-    const file = new File([blob], timestampName(), { type: blob.type });
+    try {
+        if (!dataUrl) throw new Error("No dataUrl provided");
+        
+        const blob = dataUrlToBlob(dataUrl);
+        const file = new File([blob], timestampName(), { type: blob.type });
 
-    const form = new FormData();
-    form.append("image", file);             // field name expected by backend
-    // form.append("source", "chrome_screenshot");
-    form.append("page_url", pageUrl);
-    form.append("page_title", pageTitle);
-    form.append("selection", selectionText);
+        const form = new FormData();
+        form.append("image", file);             // field name expected by backend
+        // form.append("source", "chrome_screenshot");
+        form.append("page_url", pageUrl);
+        form.append("page_title", pageTitle);
+        form.append("selection", selectionText);
 
-    const res = await fetchWithAuth(EP.UPLOAD_IMAGE, { method: "POST", body: form });
-    if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
-    
-    return res.json().catch(() => ({}));
+        const res = await fetchWithAuth(EP.UPLOAD_IMAGE, { method: "POST", body: form });
+        if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+        
+        return res.json().catch(() => ({}));
+    } 
+    catch (err) {
+        console.error("[BG] uploadScreenshot error", err);
+        await setBadge("!", "#ff0000"); // Red for error
+    }
 }
 async function uploadImageUrl({ imageUrl, pageUrl = "" }) {
     if (!imageUrl) throw new Error("No imageUrl provided");
@@ -137,6 +143,36 @@ async function uploadImageUrl({ imageUrl, pageUrl = "" }) {
 
     return res.json().catch(() => ({}));
 }
+async function searchSimilarContent(payload) {
+    try {
+        const res = await fetchWithAuth(EP.SIMILAR_CONTENT, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error(`Similar search failed: ${res.status}`);
+
+        const data = await res.json().catch(() => ({}));
+        console.log('data');
+        console.log(data);
+        
+        // Open side panel with results if any
+        if (data.results && data.results.length > 0) {
+            chrome.sidePanel.setOptions({ path: "sidepanel.html", enabled: true }, async () => {
+                await chrome.sidePanel.open({ windowId: (await chrome.tabs.get(payload.tab_id)).windowId });
+                chrome.runtime.sendMessage({type: "DISPLAY_SIMILAR_RESULTS", results: data.results, queryContent: data.query_content});
+            });
+            await setBadge("✓", "#32cd32"); // Green for success
+        } else {
+            await setBadge("0", "#808080"); // Grey for no results
+        }
+    } 
+    catch (err) {
+        console.error("[BG] searchSimilarContent error", err);
+        await setBadge("!", "#ff0000"); // Red for error
+    }
+}
 
 // ---------------------- Login ----------------------
 
@@ -149,7 +185,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     if (details.reason === "update") {
         console.log("[BG] Testing tokens...");
         const { access_token, refresh_token } = await getTokens();
-        console.log(`access_token: ${access_token} | refresh_token: ${refresh_token}`);
+        // console.log(`access_token: ${access_token} | refresh_token: ${refresh_token}`);
         
         if (!access_token && refresh_token) {
             // todo: no access token but has refresh token so refreshing the access token
@@ -185,7 +221,7 @@ chrome.action.onClicked.addListener((tab) => {
         await clearBadge();
 
         // Ask the sidepanel to refresh itself if it's already open
-        chrome.runtime.sendMessage({ type: "REFRESH_IF_OPEN" });
+        chrome.runtime.sendMessage({ type: "REFRESH_IF_OPEN" }).catch(() => {});
     });
 });
 
@@ -225,11 +261,18 @@ chrome.runtime.onInstalled.addListener(() => {
         contexts: ["page", "selection", "image", "link", "video", "audio"]
     });
 
-    // NEW: upload the specific image you right-clicked
+    // Upload the specific image you right-clicked
     chrome.contextMenus.create({
         id: "forgor-upload-image-url",
         title: "FORGOR: Upload this image",
         contexts: ["image"]
+    });
+    
+    // NEW: Search similar posts based on visible screen (screenshot)
+    chrome.contextMenus.create({
+        id: "forgor-search-similar",
+        title: "FORGOR: Search similar (screenshot)",
+        contexts: ["page", "selection"] // Can be used on any part of the page or a selection
     });
 });
 
@@ -237,7 +280,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     // NEW: upload the image the user right-clicked
     if (info.menuItemId === "forgor-upload-image-url") {
         try {
-            await setBadge("…", "#76f63bff");
+            await setBadge("...", "#ffa500");
 
             const pageUrl = info.pageUrl || (tab && tab.url) || "";
             const srcUrl  = info.srcUrl || "";
@@ -261,21 +304,16 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         } 
         catch (err) {
             console.error(err);
-            await setBadge("ERR");
-        } 
-        finally {
-            clearBadge();
+            await setBadge("ERR", "#ff0000");
+            setTimeout(() => clearBadge(), 3000);
         }
         return; // Prevent falling through to the screenshot branch
     }
     // Existing screenshot menu
     if (info.menuItemId === "forgor-capture-upload") {
         try {
-            await setBadge("…", "#76f63bff");
-
-            // Capture visible area of the current window's active tab
+            await setBadge("...", "#ffa500");
             const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
-
             const payload = {
                 dataUrl,
                 pageUrl: info.pageUrl || (tab && tab.url) || "",
@@ -288,13 +326,44 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         } 
         catch (err) {
             console.error(err);
-            await setBadge("ERR");
-        } 
-        finally {
-            clearBadge();
+            await setBadge("ERR", "#ff0000");
+            setTimeout(() => clearBadge(), 3000);
         }
         return;
     };
+    // NEW: Handle "Search similar (screenshot)"
+    if (info.menuItemId === "forgor-search-similar") {
+        try {
+            setBadge("...", "#ffa500");
+
+            // Open panel right away (satisfies user gesture requirement)
+            chrome.sidePanel.setOptions({ path: "sidepanel.html", enabled: true }, () => {
+            chrome.sidePanel.open({ tabId: tab.id }).then(() => {
+                // After panel is open, do async work
+                chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" })
+                .then(dataUrl => {
+                    const payload = {
+                        image_b64: dataUrl.split(",")[1],
+                        page_url: info.pageUrl || tab.url || "",
+                        page_title: tab.title || "",
+                        tabId: tab.id
+                    };
+                    return searchSimilarContent(payload);
+                })
+                .catch(err => {
+                    console.error("Error after opening panel:", err);
+                    setBadge("ERR", "#ff0000");
+                });
+            });
+            });
+        } 
+        catch (err) {
+            console.error("Error capturing and searching similar from screenshot:", err);
+            await setBadge("ERR", "#ff0000");
+            setTimeout(() => clearBadge(), 3000);
+        }
+        return;
+    }
 });
 
 // ---------------------- General ----------------------

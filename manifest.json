@@ -1,8 +1,8 @@
 {
     "manifest_version": 3,
     "name": "FORGOR",
-    "version": "0.1.0",
-    "description": "Shows related images based on your current tab's title and domain.",
+    "version": "1.0.0",
+    "description": "Save screenshots and images from any site to your FORGOR account, then view and manage them in a side panel.",
     "action": {
         "default_title": "FORGOR"
     },
@@ -12,9 +12,6 @@
         "tabs",
         "activeTab",
         "sidePanel"
-    ],
-    "host_permissions": [
-        "<all_urls>"
     ],
     "background": {
         "service_worker": "background.js",

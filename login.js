@@ -1,4 +1,4 @@
-import { SERVER_URL, APP_KEY, USER_AGENT } from "./config.js";
+import { SERVER_URL, USER_AGENT } from "./config.js";
 
 const EP = {
     LOGIN:    `${SERVER_URL}/api/login`,
@@ -26,9 +26,8 @@ form.addEventListener("submit", async (e) => {
             const reg = await fetch(url, {
                 method: "POST",
                 headers: {
-                "Content-Type": "application/json",
-                "User-Agent": USER_AGENT,
-                "X-App-Key": APP_KEY
+                    "Content-Type": "application/json",
+                    "User-Agent": USER_AGENT,
                 },
                 body: JSON.stringify({ username, email, password, timezone: tz })
             });
@@ -40,7 +39,6 @@ form.addEventListener("submit", async (e) => {
             headers: {
                 "Content-Type": "application/json",
                 "User-Agent": USER_AGENT,
-                "X-App-Key": APP_KEY,
                 "X-Timezone": tz
             },
             body: JSON.stringify({ username, email, password })
