@@ -1,6 +1,5 @@
 // sidepanel.js
 
-import { USER_AGENT } from "./config.js";
 import { 
     PLACEHOLDER_URL,
     SKIP_PATTERNS,
@@ -8,7 +7,6 @@ import {
     EP, 
     fetchWithAuth, 
     loadImageWithAuth, 
-    dataUrlToBlob, 
     sanitizeLinkLabel, 
     resolveHandleToUrl 
 } from "./shared.js";
@@ -23,46 +21,10 @@ async function getActiveTab() {
 // ---------------------- Bar ----------------------
 
 const refreshBtnEl = document.getElementById("refreshBtn");
-const metaEl = document.getElementById("meta");
 
 refreshBtnEl?.addEventListener("click", () => {
     loadImages(true);
 });
-
-function setMeta(text) { if (metaEl) metaEl.textContent = text || ""; }
-
-function captureVisibleTab() {
-    return new Promise((resolve, reject) => {
-        try {
-        chrome.tabs.captureVisibleTab(
-            undefined,
-            { format: "png" }, // or "jpeg" with { quality: 90 }
-            (dataUrl) => {
-                if (chrome.runtime.lastError) return reject(chrome.runtime.lastError);
-                if (!dataUrl) return reject(new Error("No dataUrl from captureVisibleTab()"));
-                resolve(dataUrl);
-            }
-        );
-        } 
-        catch (e) {
-            reject(e);
-        }
-    });
-}
-
-async function uploadScreenshotBlob(blob, filename = `screenshot_${Date.now()}.png`) {
-    const form = new FormData();
-    form.append("image", blob, filename); // backend expects "image"
-
-    const resp = await fetchWithAuth(EP.UPLOAD_IMAGE, {
-        method: "POST",
-        headers: { "User-Agent": USER_AGENT}, // baseHeaders is applied inside fetchWithAuth too
-        body: form
-    });
-    if (!resp.ok) throw new Error(`Upload failed: ${resp.status}`);
-    
-    return resp.json();
-}
 
 // ---------------------- Lightbox ----------------------
 
@@ -176,9 +138,6 @@ overlayEl.addEventListener("click", (e) => {
 closeBtnEl.addEventListener("click", closeLightbox);
 
 // ---------------------- Rendering ----------------------
-
-
-
 
 function setRealImage(img, objectUrl, alt = "") {
   img.src = objectUrl;
