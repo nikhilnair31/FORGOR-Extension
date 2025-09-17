@@ -50,8 +50,6 @@ function openLightbox(src, alt = "", fileName = null, tags = null) {
     overlayEl.setAttribute("aria-hidden", "false");
     
     document.body.style.overflow = "hidden";
-    
-    closeBtnEl.focus();
 }
 
 function closeLightbox() {
@@ -113,6 +111,8 @@ gridEl.addEventListener("click", async (e) => {
     const img = e.target.closest("img.thumb");
     if (!img) return;
 
+    console.log(`img: ${JSON.stringify(img)}`);
+    
     const fileName = img.dataset.fileName || null;
     const tags = img.dataset.tags || null;
     openLightbox(img.src, img.alt, fileName, tags);
