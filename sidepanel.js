@@ -206,7 +206,7 @@ async function renderSequential(items) {
     gridEl.innerHTML = "";
 
     if (!items?.length) {
-        gridEl.innerHTML = `<div class="empty">NO RELATED IMAGES FOUND</div>`;
+        gridEl.innerHTML = `<div class="empty">NO RESULTS FOUND</div>`;
         return;
     }
 
