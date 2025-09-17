@@ -36,7 +36,7 @@ export const EP = {
     UPLOAD_IMAGE:       `${SERVER_URL}/api/upload/image`,
     UPLOAD_IMAGEURL:    `${SERVER_URL}/api/upload/imageurl`,
     DELETE:             `${SERVER_URL}/api/delete/file`,
-    QUERY:              `${SERVER_URL}/api/check/text`,
+    RELEVANT:           `${SERVER_URL}/api/relevant`,
     FILE:               `${SERVER_URL}/api/get_file`,
     THUMBNAIL:          `${SERVER_URL}/api/get_thumbnail`,
     LOGIN:              `${SERVER_URL}/api/login`,

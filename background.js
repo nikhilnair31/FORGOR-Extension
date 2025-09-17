@@ -86,7 +86,7 @@ async function hasResultsFor(searchText) {
             return { has: false, data: null };
         }
 
-        const r = await fetchWithAuth(EP.QUERY, {
+        const r = await fetchWithAuth(EP.RELEVANT, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ searchText })
@@ -153,28 +153,30 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     }
     if (details.reason === "update") {
         console.log("[BG] Updated so testing tokens...");
-        await chrome.tabs.create({ url: chrome.runtime.getURL("login.html") });
-        // const { access_token, refresh_token } = await getTokens();
         
-        // if (!access_token && refresh_token) {
-        //     console.log(`[BG] no access token but has refresh token so refreshing the access token`);
-        //     try {
-        //         const newAccess = await refreshAccessToken();
-        //         console.log("[BG] Refreshed access token OK:", newAccess ? "yes" : "no");
-        //     } catch (err) {
-        //         console.warn("[BG] Refresh failed, clearing tokens", err);
-        //         await clearTokens();
-        //         await chrome.tabs.create({ url: chrome.runtime.getURL("login.html") });
-        //     }
+        // await chrome.tabs.create({ url: chrome.runtime.getURL("login.html") });
+
+        const { access_token, refresh_token } = await getTokens();
+        
+        if (!access_token && refresh_token) {
+            console.log(`[BG] no access token but has refresh token so refreshing the access token`);
+            try {
+                const newAccess = await refreshAccessToken();
+                console.log("[BG] Refreshed access token OK:", newAccess ? "yes" : "no");
+            } catch (err) {
+                console.warn("[BG] Refresh failed, clearing tokens", err);
+                await clearTokens();
+                await chrome.tabs.create({ url: chrome.runtime.getURL("login.html") });
+            }
             
-        // }
-        // else if (!access_token || !refresh_token) {
-        //     console.log(`[BG] No access token or refresh token so prompt re-login`);
-        //     await chrome.tabs.create({ url: chrome.runtime.getURL("login.html") });
-        // }
-        // else if (access_token && refresh_token) {
-        //     console.log(`[BG] Got both tokens!`);
-        // }
+        }
+        else if (!access_token || !refresh_token) {
+            console.log(`[BG] No access token or refresh token so prompt re-login`);
+            await chrome.tabs.create({ url: chrome.runtime.getURL("login.html") });
+        }
+        else if (access_token && refresh_token) {
+            console.log(`[BG] Got both tokens!`);
+        }
     }
 });
 
@@ -325,7 +327,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
             }
             
             // Fallback: do a live fetch, cache, and return
-            const res = await fetchWithAuth(EP.QUERY, {
+            const res = await fetchWithAuth(EP.RELEVANT, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ searchText: key })
@@ -343,7 +345,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
         // Old direct fetch path (kept for compatibility)
         if (msg?.type === "QUERY") {
-            const res = await fetchWithAuth(EP.QUERY, {
+            const res = await fetchWithAuth(EP.RELEVANT, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ searchText: msg.searchText || "" })
