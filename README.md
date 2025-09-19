@@ -4,5 +4,5 @@
 
 ### To-Do
 
-- [ ] Add tracking functions for all URLs
+- [ ] Add save limit checks
 - [ ] Improve buffer system to avoid constant suggestions

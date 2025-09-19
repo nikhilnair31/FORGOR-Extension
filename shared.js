@@ -45,7 +45,7 @@ export const EP = {
     REGISTER:           `${SERVER_URL}/api/register`,
     REFRESH:            `${SERVER_URL}/api/refresh_token`,
     GET_SAVES:          `${SERVER_URL}/api/get_saves_left`,
-    SIMILAR_CONTENT:    `${SERVER_URL}/api/get_similar_to_content`
+    GET_TRACKING_LINKS: `${SERVER_URL}/api/generate-tracking-links`
 };
 
 // ---------------------- Storage ----------------------
@@ -230,25 +230,34 @@ export function makeQueryKey(s) {
     return (s || "").trim().toLowerCase();
 }
 
+// ---------------------- Tracking ----------------------
+
+export async function getTrackingLinks(urls) {
+    try {
+        const body = JSON.stringify({ urls });
+        const resp = await fetchWithAuth(EP.GET_TRACKING_LINKS, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body
+        });
+        if (!resp.ok) throw new Error(`Failed ${resp.status}`);
+        const json = await resp.json();
+        return Array.isArray(json.links) ? json.links : [];
+    } catch (err) {
+        console.error("getTrackingLinks error:", err);
+        return [];
+    }
+}
+
 // ---------------------- URLs ----------------------
 
 export function sanitizeLinkLabel(url) {
     try {
         const u = new URL(url);
-
-        // filter out obvious boilerplate/legal URLs
-        const badPatterns = [
-            "/privacy", "/privacy-policy",
-            "/terms", "/tos", "/terms-of-service",
-            "/cookies", "/cookie-policy"
-        ];
-        if (badPatterns.some(p => u.pathname.toLowerCase().includes(p))) {
-            return null; // signal to skip this link
-        }
-
-        return u.hostname.replace(/^www\./, '');
-    } 
-    catch {
+        const host = (u.host || "").replace(/^www\./, "");
+        const path = u.pathname.replace(/^\/+|\/+$/g, ""); // trim leading/trailing /
+        return path ? `${host}/${path}` : host;
+    } catch {
         return url;
     }
 }

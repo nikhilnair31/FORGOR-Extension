@@ -44,7 +44,6 @@ chrome.tabs.onActivated.addListener(async ({ tabId }) => {
     try {
         const tab = await chrome.tabs.get(tabId);
         if (!tab?.url) return;
-        console.log("[onActivated]", tab.title, tab.url);
 
         resetStabilityTimer(tab);
         queueUserAction(tab);
@@ -59,7 +58,6 @@ chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
         if (!(info.status === "complete" || "title" in info || "url" in info)) return;
         if (!tab?.url) return;
         if (info.url || info.title) {
-            console.log("[onUpdated]", tab.title, tab.url);
             resetStabilityTimer(tab);
             queueUserAction(tab);
         }
@@ -80,48 +78,38 @@ function queueUserAction(tab) {
     const beforeSize = actionBuffer.size;
     actionBuffer.add(key);
     const afterSize = actionBuffer.size;
-    console.log("[queueUserAction] added:", key, "| buffer size:", afterSize, "(was", beforeSize, ")");
 
     // schedule flush
     if (flushTimer) {
         clearTimeout(flushTimer);
-        console.log("[queueUserAction] cleared previous flush timer");
     }
     flushTimer = setTimeout(flushActions, FLUSH_MS);
-    console.log("[queueUserAction] scheduled flush in", FLUSH_MS, "ms");
 }
 
 async function flushActions() {
     flushTimer = null;
     if (!actionBuffer.size) {
-        console.log("[flushActions] buffer empty → skip");
         return;
     }
 
     const currentQuery = Array.from(actionBuffer).join(" || ");
-    console.log("[flushActions] flushing buffer:", Array.from(actionBuffer));
     actionBuffer.clear();
 
     if (!currentQuery) {
-        console.log("[flushActions] empty query → clearBadge");
         await clearBadge();
         return;
     }
 
     if (currentQuery === lastQuery) {
-        console.log("[flushActions] same as last query → skip");
         return;
     }
     lastQuery = currentQuery;
 
     try {
-        console.log("[flushActions] querying hasResultsFor:", currentQuery);
         const { has } = await hasResultsFor(currentQuery);
         if (has) {
-            console.log("[flushActions] result found → setBadge");
             setBadge("●", "#3b82f6");
         } else {
-            console.log("[flushActions] no result → clearBadge");
             await clearBadge();
         }
     } catch (err) {
@@ -133,7 +121,6 @@ async function flushActions() {
 function resetStabilityTimer(tab) {
     if (tabChangeTimer) {
         clearTimeout(tabChangeTimer);
-        console.log("[resetStabilityTimer] cleared previous timer");
     }
 
     tabChangeTimer = setTimeout(() => {
@@ -142,25 +129,18 @@ function resetStabilityTimer(tab) {
         const title = (tab.title || "").trim();
         const searchText = `${title} ${domain}`.trim();
         if (!searchText) {
-            console.log("[resetStabilityTimer] empty searchText → skip");
             return;
         }
 
-        console.log("[resetStabilityTimer] stable tab:", searchText);
-
         chrome.idle.queryState(IDLE_THRESHOLD / 1000, (state) => {
-            console.log("[resetStabilityTimer] idle state:", state);
             if (state === "idle") {
                 hasResultsFor(searchText).then(result => {
                     if (result.has) {
-                        console.log("[resetStabilityTimer] idle+match → setBadge");
                         setBadge("●", "#3b82f6");
                     } else {
-                        console.log("[resetStabilityTimer] idle+no match → clearBadge");
                         clearBadge();
                     }
                 }).catch(err => {
-                    console.error("[resetStabilityTimer] error", err);
                     clearBadge();
                 });
             } else {
@@ -168,8 +148,6 @@ function resetStabilityTimer(tab) {
             }
         });
     }, STABILITY_THRESHOLD);
-
-    console.log("[resetStabilityTimer] scheduled stability check in", STABILITY_THRESHOLD, "ms");
 }
 
 async function hasResultsFor(searchText) {
@@ -193,19 +171,20 @@ async function hasResultsFor(searchText) {
         console.log(arr);
         
         const threshold = 0.25;
-        const filtered = arr.filter(item => 
-            typeof item.hybrid_score === "number" && item.hybrid_score >= threshold
-        );
-        console.log(`[hasResultsFor] kept ${filtered.length} items ≥ ${threshold}`);
+        const topScore = arr.length > 0 && typeof arr[0].hybrid_score === "number"
+            ? arr[0].hybrid_score
+            : 0;
         
-        const data = { ...j, results: filtered, items: filtered, images: filtered };
-        
-        putCache(searchText, data);
-        
-        const ret = { has: filtered.length > 0, data };
-        console.log("[hasResultsFor] ret:", ret);
-
-        return ret;
+        // ✅ If topScore passes, return full list
+        if (topScore >= threshold) {
+            putCache(searchText, j);
+            const ret = { has: true, data: j };
+            return ret;
+        } 
+        else {
+            console.log("[hasResultsFor] below threshold → no results");
+            return { has: false, data: null };
+        }
     } 
     catch { 
         return { has: false, data: null };
@@ -258,7 +237,6 @@ async function uploadImageUrl({ imageUrl, pageUrl = "" }) {
 // ---------------------- Login ----------------------
 
 chrome.runtime.onInstalled.addListener(async (details) => {
-    console.log("[BG] onInstalled", details);
     if (details.reason === "install") {
         console.log("[BG] Installed so opening login.html...");
         await chrome.tabs.create({ url: chrome.runtime.getURL("login.html") });

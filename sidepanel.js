@@ -7,6 +7,9 @@ import {
     EP, 
     fetchWithAuth, 
     loadImageWithAuth, 
+    
+    getTrackingLinks,
+
     sanitizeLinkLabel, 
     resolveHandleToUrl 
 } from "./shared.js";
@@ -108,26 +111,26 @@ window.addEventListener("keydown", (e) => {
 });
 
 gridEl.addEventListener("click", async (e) => {
-    const img = e.target.closest("img.thumb");
-    if (!img) return;
+const img = e.target.closest("img.thumb");
+if (!img) return;
 
-    console.log(`img: ${JSON.stringify(img)}`);
-    
-    const fileName = img.dataset.fileName || null;
-    const tags = img.dataset.tags || null;
-    openLightbox(img.src, img.alt, fileName, tags);
+console.log(`img: ${JSON.stringify(img)}`);
 
-    // now request the full file
-    if (fileName) {
-        try {
-            const fullUrl = `${EP.FILE}/${encodeURIComponent(fileName)}`;
-            const realSrc = await loadImageWithAuth(fullUrl);
-            fullImgEl.src = realSrc; // replace once fetched
-        } 
-        catch (err) {
-            console.warn("Failed to load full file", err);
-        }
+const fileName = img.dataset.fileName || null;
+const tags = img.dataset.tags || null;
+openLightbox(img.src, img.alt, fileName, tags);
+
+// now request the full file
+if (fileName) {
+    try {
+        const fullUrl = `${EP.FILE}/${encodeURIComponent(fileName)}`;
+        const realSrc = await loadImageWithAuth(fullUrl);
+        fullImgEl.src = realSrc; // replace once fetched
+    } 
+    catch (err) {
+        console.warn("Failed to load full file", err);
     }
+}
 });
 
 overlayEl.addEventListener("click", (e) => {
@@ -157,7 +160,7 @@ function setPlaceholder(img, alt = "Image unavailable") {
     img.removeAttribute("loading"); // not needed for data URL
 }
 
-function renderLinks(tagsAny) {
+async function renderLinks(tagsAny) {
     const box = document.getElementById("linksBox");
     box.innerHTML = "";
     if (!tagsAny) return;
@@ -170,35 +173,25 @@ function renderLinks(tagsAny) {
     const links   = Array.isArray(tagsObj.links) ? tagsObj.links : [];
     const handles = Array.isArray(tagsObj.account_identifiers) ? tagsObj.account_identifiers : [];
 
-    if (!links.length && !handles.length) return;
+    // Collect raw + handle URLs
+    const handleUrls = handles.map(h => resolveHandleToUrl(appName, h)).filter(Boolean);
+    const allUrls = [...links, ...handleUrls];
+    if (!allUrls.length) return;
 
-    for (const link of links) {
-        if (!link || SKIP_PATTERNS.some(p => link.toLowerCase().includes(p))) continue;
-        console.log(`link: ${link}`);
+    // Fetch tracking versions
+    const trackingLinks = await getTrackingLinks(allUrls);
+    for (const obj of trackingLinks) {
+        const original = obj?.original;
+        const tracking = obj?.tracking;
+        if (!original || !tracking) continue;
 
         const a = document.createElement("a");
-        a.href = link;
+        a.href = tracking;
         a.target = "_blank";
         a.rel = "noopener noreferrer";
-        a.textContent = sanitizeLinkLabel(link);
+        a.textContent = sanitizeLinkLabel(original);
         box.appendChild(a);
         box.appendChild(document.createElement("br"));
-        console.log(`box:`, box);
-    }
-
-    for (const handle of handles) {
-        if (!handle) continue;
-        console.log(`handle: ${handle}`);
-        
-        const url = resolveHandleToUrl(appName, handle);
-        const a = document.createElement("a");
-        a.href = url;
-        a.target = "_blank";
-        a.rel = "noopener noreferrer";
-        a.textContent = handle;
-        box.appendChild(a);
-        box.appendChild(document.createElement("br"));
-        console.log(`box:`, box);
     }
 }
 
