@@ -33,65 +33,6 @@ function getCache(searchText) {
     return entry.data;
 }
 
-// ---------------------- Behavior Tracking ----------------------
-
-let behaviorLog = [];
-let lastActive = null; // track previous focus
-
-// Track tab focus changes (activation)
-chrome.tabs.onActivated.addListener(async ({ tabId }) => {
-    try {
-        const tab = await chrome.tabs.get(tabId);
-        if (!tab?.url) return;
-
-        const now = Date.now();
-        const newEntry = {
-            type: "tab-focus-change",
-            from: lastActive
-                ? { title: lastActive.title, url: lastActive.url }
-                : null,
-            to: { title: tab.title || "", url: tab.url },
-            ts: now
-        };
-        behaviorLog.push(newEntry);
-
-        // update last active
-        lastActive = { title: tab.title || "", url: tab.url };
-
-        printBehaviorLog();
-    } catch (e) {
-        console.warn("[Behavior] Failed to log tab activation", e);
-    }
-});
-
-// Track idle vs active
-chrome.idle.onStateChanged.addListener((state) => {
-    behaviorLog.push({
-        type: "idle-state",
-        state,       // "active", "idle", or "locked"
-        ts: Date.now()
-    });
-    printBehaviorLog();
-});
-
-// Print the entire log nicely
-function printBehaviorLog() {
-    console.log("========== Behavior Log ==========");
-    behaviorLog.forEach((entry, idx) => {
-        const t = new Date(entry.ts).toLocaleTimeString();
-        if (entry.type === "idle-state") {
-            console.log(
-                `${idx + 1}. [${t}] Idle state: ${entry.state}`
-            );
-        } else {
-            console.log(
-                `${idx + 1}. [${t}] ${entry.type} → "${entry.title}" (${entry.url})`
-            );
-        }
-    });
-    console.log("=================================");
-}
-
 // ---------------------- Batching ----------------------
 
 let actionBuffer = new Set();
@@ -246,16 +187,23 @@ async function hasResultsFor(searchText) {
         if (!r.ok) return { has: false, data: null };
         
         const j = await r.json().catch(() => null);
-        putCache(searchText, j);
+        if (!j) return { has: false, data: null };
         
         const arr = j?.images || j?.results || j?.items || [];
         console.log(arr);
         
-        const topScore = arr.length > 0 ? arr[0]?.hybrid_score : 0;
-        console.log(`topScore: ${topScore}`);
+        const threshold = 0.25;
+        const filtered = arr.filter(item => 
+            typeof item.hybrid_score === "number" && item.hybrid_score >= threshold
+        );
+        console.log(`[hasResultsFor] kept ${filtered.length} items ≥ ${threshold}`);
         
-        const ret = { has: Array.isArray(arr) && arr.length > 0 && topScore >= 0.3, data: j }
-        console.log(`ret: ${JSON.stringify(ret)}`);
+        const data = { ...j, results: filtered, items: filtered, images: filtered };
+        
+        putCache(searchText, data);
+        
+        const ret = { has: filtered.length > 0, data };
+        console.log("[hasResultsFor] ret:", ret);
 
         return ret;
     } 
@@ -463,21 +411,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
                 sendResponse({ ok: true, body: JSON.stringify(cached), fromCache: true }); 
                 return; 
             }
-            
-            // Fallback: do a live fetch, cache, and return
-            const res = await fetchWithAuth(EP.RELEVANT, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ searchText: key })
-            });
-            const text = await res.text();
-            
-            try { 
-                putCache(key, JSON.parse(text)); 
-            } 
-            catch {}
-            
-            sendResponse({ ok: res.ok, body: text, fromCache: false });
+
+            // ✅ reuse hasResultsFor so filtering applies
+            const result = await hasResultsFor(key);
+            sendResponse({ ok: true, body: JSON.stringify(result.data || {}), fromCache: false });
             return;
         }
     })();
