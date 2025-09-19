@@ -3,6 +3,8 @@
 import {
     CACHE_TTL_MS,
     FLUSH_MS,
+    STABILITY_THRESHOLD,
+    IDLE_THRESHOLD,
 
     EP,
     fetchWithAuth,
@@ -31,52 +33,202 @@ function getCache(searchText) {
     return entry.data;
 }
 
-// ---------------------- Batching ----------------------
+// ---------------------- Behavior Tracking ----------------------
 
-let actionBuffer = []; // [{title, domain, tabId, ts}]
-let flushTimer = null;
+let behaviorLog = [];
+let lastActive = null; // track previous focus
 
-// Push a user action into the buffer and (re)start the flush timer
-function queueUserAction(entry) {
-    actionBuffer.push({
-        title: (entry?.title || "").trim(),
-        domain: (entry?.domain || "").trim(),
-        tabId: entry?.tabId ?? null,
+// Track tab focus changes (activation)
+chrome.tabs.onActivated.addListener(async ({ tabId }) => {
+    try {
+        const tab = await chrome.tabs.get(tabId);
+        if (!tab?.url) return;
+
+        const now = Date.now();
+        const newEntry = {
+            type: "tab-focus-change",
+            from: lastActive
+                ? { title: lastActive.title, url: lastActive.url }
+                : null,
+            to: { title: tab.title || "", url: tab.url },
+            ts: now
+        };
+        behaviorLog.push(newEntry);
+
+        // update last active
+        lastActive = { title: tab.title || "", url: tab.url };
+
+        printBehaviorLog();
+    } catch (e) {
+        console.warn("[Behavior] Failed to log tab activation", e);
+    }
+});
+
+// Track idle vs active
+chrome.idle.onStateChanged.addListener((state) => {
+    behaviorLog.push({
+        type: "idle-state",
+        state,       // "active", "idle", or "locked"
         ts: Date.now()
     });
-    scheduleFlush();
+    printBehaviorLog();
+});
+
+// Print the entire log nicely
+function printBehaviorLog() {
+    console.log("========== Behavior Log ==========");
+    behaviorLog.forEach((entry, idx) => {
+        const t = new Date(entry.ts).toLocaleTimeString();
+        if (entry.type === "idle-state") {
+            console.log(
+                `${idx + 1}. [${t}] Idle state: ${entry.state}`
+            );
+        } else {
+            console.log(
+                `${idx + 1}. [${t}] ${entry.type} → "${entry.title}" (${entry.url})`
+            );
+        }
+    });
+    console.log("=================================");
 }
 
-function scheduleFlush() {
-  if (flushTimer) clearTimeout(flushTimer);
-  flushTimer = setTimeout(flushActions, FLUSH_MS);
+// ---------------------- Batching ----------------------
+
+let actionBuffer = new Set();
+let flushTimer = null;
+let tabChangeTimer = null;
+let lastQuery = null; // ✅ FIXED: declared
+
+chrome.tabs.onActivated.addListener(async ({ tabId }) => {
+    try {
+        const tab = await chrome.tabs.get(tabId);
+        if (!tab?.url) return;
+        console.log("[onActivated]", tab.title, tab.url);
+
+        resetStabilityTimer(tab);
+        queueUserAction(tab);
+    } 
+    catch (e) {
+        console.warn("[BG] onActivated error", e);
+    }
+});
+
+chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
+    try {
+        if (!(info.status === "complete" || "title" in info || "url" in info)) return;
+        if (!tab?.url) return;
+        if (info.url || info.title) {
+            console.log("[onUpdated]", tab.title, tab.url);
+            resetStabilityTimer(tab);
+            queueUserAction(tab);
+        }
+    } catch (e) {
+        console.warn("[BG] onUpdated error", e);
+    }
+});
+
+// Push a user action into the buffer and (re)start the flush timer
+function queueUserAction(tab) {
+    let domain = "";
+    try { domain = new URL(tab.url).hostname; } catch {}
+
+    const title = (tab.title || "").trim();
+    const key = `${title} ${domain}`.trim();
+    if (!key) return;
+
+    const beforeSize = actionBuffer.size;
+    actionBuffer.add(key);
+    const afterSize = actionBuffer.size;
+    console.log("[queueUserAction] added:", key, "| buffer size:", afterSize, "(was", beforeSize, ")");
+
+    // schedule flush
+    if (flushTimer) {
+        clearTimeout(flushTimer);
+        console.log("[queueUserAction] cleared previous flush timer");
+    }
+    flushTimer = setTimeout(flushActions, FLUSH_MS);
+    console.log("[queueUserAction] scheduled flush in", FLUSH_MS, "ms");
 }
 
 async function flushActions() {
     flushTimer = null;
-    const batch = actionBuffer.splice(0);
-    if (!batch.length) return;
+    if (!actionBuffer.size) {
+        console.log("[flushActions] buffer empty → skip");
+        return;
+    }
 
-    const parts = Array.from(
-        new Set(batch.map(it => `${it.title} ${it.domain}`.trim()).filter(Boolean))
-    );
-    if (!parts.length) { await clearBadge(); return; }
+    const currentQuery = Array.from(actionBuffer).join(" || ");
+    console.log("[flushActions] flushing buffer:", Array.from(actionBuffer));
+    actionBuffer.clear();
 
-    const batchedSearchText = parts.join(" || ");
+    if (!currentQuery) {
+        console.log("[flushActions] empty query → clearBadge");
+        await clearBadge();
+        return;
+    }
+
+    if (currentQuery === lastQuery) {
+        console.log("[flushActions] same as last query → skip");
+        return;
+    }
+    lastQuery = currentQuery;
 
     try {
-        const { has } = await hasResultsFor(batchedSearchText);
+        console.log("[flushActions] querying hasResultsFor:", currentQuery);
+        const { has } = await hasResultsFor(currentQuery);
         if (has) {
-            setBadge("●", "#3b82f6")
-        } 
-        else {
+            console.log("[flushActions] result found → setBadge");
+            setBadge("●", "#3b82f6");
+        } else {
+            console.log("[flushActions] no result → clearBadge");
             await clearBadge();
         }
-    } 
-    catch (err) {
-        console.error("[BG] flushActions error", err);
+    } catch (err) {
+        console.error("[flushActions error]", err);
         await clearBadge();
     }
+}
+
+function resetStabilityTimer(tab) {
+    if (tabChangeTimer) {
+        clearTimeout(tabChangeTimer);
+        console.log("[resetStabilityTimer] cleared previous timer");
+    }
+
+    tabChangeTimer = setTimeout(() => {
+        let domain = "";
+        try { domain = new URL(tab.url).hostname; } catch {}
+        const title = (tab.title || "").trim();
+        const searchText = `${title} ${domain}`.trim();
+        if (!searchText) {
+            console.log("[resetStabilityTimer] empty searchText → skip");
+            return;
+        }
+
+        console.log("[resetStabilityTimer] stable tab:", searchText);
+
+        chrome.idle.queryState(IDLE_THRESHOLD / 1000, (state) => {
+            console.log("[resetStabilityTimer] idle state:", state);
+            if (state === "idle") {
+                hasResultsFor(searchText).then(result => {
+                    if (result.has) {
+                        console.log("[resetStabilityTimer] idle+match → setBadge");
+                        setBadge("●", "#3b82f6");
+                    } else {
+                        console.log("[resetStabilityTimer] idle+no match → clearBadge");
+                        clearBadge();
+                    }
+                }).catch(err => {
+                    console.error("[resetStabilityTimer] error", err);
+                    clearBadge();
+                });
+            } else {
+                console.log("[resetStabilityTimer] user active → skip badge update");
+            }
+        });
+    }, STABILITY_THRESHOLD);
+
+    console.log("[resetStabilityTimer] scheduled stability check in", STABILITY_THRESHOLD, "ms");
 }
 
 async function hasResultsFor(searchText) {
@@ -97,7 +249,15 @@ async function hasResultsFor(searchText) {
         putCache(searchText, j);
         
         const arr = j?.images || j?.results || j?.items || [];
-        return { has: Array.isArray(arr) && arr.length > 0, data: j };
+        console.log(arr);
+        
+        const topScore = arr.length > 0 ? arr[0]?.hybrid_score : 0;
+        console.log(`topScore: ${topScore}`);
+        
+        const ret = { has: Array.isArray(arr) && arr.length > 0 && topScore >= 0.3, data: j }
+        console.log(`ret: ${JSON.stringify(ret)}`);
+
+        return ret;
     } 
     catch { 
         return { has: false, data: null };
@@ -127,20 +287,24 @@ async function uploadScreenshot({ dataUrl, pageUrl = "", pageTitle = "", selecti
     } 
     catch (err) {
         console.error("[BG] uploadScreenshot error", err);
-        await setBadge("!", "#ff0000"); // Red for error
     }
 }
 async function uploadImageUrl({ imageUrl, pageUrl = "" }) {
-    if (!imageUrl) throw new Error("No imageUrl provided");
+    try {
+        if (!imageUrl) throw new Error("No imageUrl provided");
 
-    const form = new FormData();
-    form.append("image_url", imageUrl);   // server expects this
-    form.append("post_url", pageUrl || "-");
+        const form = new FormData();
+        form.append("image_url", imageUrl);   // server expects this
+        form.append("post_url", pageUrl || "-");
 
-    const res = await fetchWithAuth(EP.UPLOAD_IMAGEURL, { method: "POST", body: form });
-    if (!res.ok) throw new Error(`Upload URL failed: ${res.status}`);
+        const res = await fetchWithAuth(EP.UPLOAD_IMAGEURL, { method: "POST", body: form });
+        if (!res.ok) throw new Error(`Upload URL failed: ${res.status}`);
 
-    return res.json().catch(() => ({}));
+        return res.json().catch(() => ({}));
+    } 
+    catch (err) {
+        console.error("[BG] uploadScreenshot error", err);
+    }
 }
 
 // ---------------------- Login ----------------------
@@ -194,32 +358,6 @@ chrome.action.onClicked.addListener((tab) => {
     });
 });
 
-chrome.tabs.onActivated.addListener(async ({ tabId }) => {
-    try {
-        const tab = await chrome.tabs.get(tabId);
-        if (!tab?.url && !loginTabOpened) { queueUserAction({ title: "", domain: "", tabId }); return; }
-        let domain = ""; try { domain = new URL(tab.url).hostname; } catch {}
-        queueUserAction({ title: tab.title || "", domain, tabId });
-    } catch (e) {
-        console.warn("[BG] onActivated get error", e);
-        queueUserAction({ title: "", domain: "", tabId });
-    }
-});
-
-chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
-    // We’ll buffer on common “content is ready or changed” signals:
-    if (!(info.status === "complete" || "title" in info || "url" in info)) return;
-
-    let domain = "";
-    try { if (tab?.url) domain = new URL(tab.url).hostname; } catch {}
-
-    queueUserAction({
-        title: (tab?.title || ""),
-        domain,
-        tabId
-    });
-});
-
 // ---------------------- Context Menu ----------------------
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -262,11 +400,11 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
                 await uploadImageUrl({ imageUrl: srcUrl, pageUrl });
             }
 
-            await setBadge("OK");
+            await setBadge("✔", "#b1ff7cff");
         } 
         catch (err) {
             console.error(err);
-            await setBadge("ERR", "#ff0000");
+            await setBadge("❗", "#ff0000");
             setTimeout(() => clearBadge(), 3000);
         }
         return; // Prevent falling through to the screenshot branch
@@ -284,11 +422,11 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
             };
 
             await uploadScreenshot(payload);
-            await setBadge("OK");
+            await setBadge("✔", "#b1ff7cff");
         } 
         catch (err) {
             console.error(err);
-            await setBadge("ERR", "#ff0000");
+            await setBadge("❗", "#ff0000");
             setTimeout(() => clearBadge(), 3000);
         }
         return;
@@ -340,19 +478,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
             catch {}
             
             sendResponse({ ok: res.ok, body: text, fromCache: false });
-            return;
-        }
-
-        // Old direct fetch path (kept for compatibility)
-        if (msg?.type === "QUERY") {
-            const res = await fetchWithAuth(EP.RELEVANT, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ searchText: msg.searchText || "" })
-            });
-            const text = await res.text();
-            try { putCache(msg.searchText || "", JSON.parse(text)); } catch {}
-            sendResponse({ ok: res.ok, body: text });
             return;
         }
     })();

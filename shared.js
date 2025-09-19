@@ -4,8 +4,10 @@ import { SERVER_URL, USER_AGENT } from "./config.js";
 
 // ---------------------- Vars ----------------------
 
-export const CACHE_TTL_MS = 5 * 1000; // 15 sec to query results
-export const FLUSH_MS = 1000; // 5 seconds of no new actions -> flush
+export const CACHE_TTL_MS           = 5 * 1000; // 15 sec to query results
+export const FLUSH_MS               = 1000; // 5 seconds of no new actions -> flush
+export const STABILITY_THRESHOLD    = 1000; // 5s tab stability
+export const IDLE_THRESHOLD         = 15000; // 15s user idle
 
 export const PLACEHOLDER_SVG = encodeURIComponent(`
     <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="2424">
