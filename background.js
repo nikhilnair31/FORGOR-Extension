@@ -168,7 +168,6 @@ async function hasResultsFor(searchText) {
         if (!j) return { has: false, data: null };
         
         const arr = j?.images || j?.results || j?.items || [];
-        console.log(arr);
         
         const threshold = 0.25;
         const topScore = arr.length > 0 && typeof arr[0].hybrid_score === "number"
@@ -191,6 +190,70 @@ async function hasResultsFor(searchText) {
     }
 }
 
+// ---------------------- User Tier and Saves ----------------------
+
+let userTierInfo = {
+    tier: "Free", // Default tier
+    currentSaves: 0,
+    maxSaves: 5, // Default max saves for free tier
+};
+
+async function fetchUserTierInfo() {
+    try {
+        const { access_token } = await getTokens();
+        if (!access_token) {
+            console.log("[BG] No access token, skipping tier info fetch.");
+            return;
+        }
+
+        const res = await fetchWithAuth(EP.USER_TIER_INFO);
+        if (!res.ok) {
+            console.warn(`[BG] Failed to fetch user tier info: ${res.status}`);
+            // If 401, tokens might be bad, prompt login
+            if (res.status === 401) {
+                chrome.runtime.sendMessage({ type: "PROMPT_LOGIN" }).catch(() => {});
+            }
+            return;
+        }
+
+        const data = await res.json();
+        userTierInfo = {
+            tier: data.tier || "Free",
+            currentSaves: data.current_saves ?? 0,
+            maxSaves: data.max_saves ?? 5,
+        };
+        console.log("[BG] User tier info fetched:", userTierInfo);
+
+        // Update side panel if it's open
+        chrome.runtime.sendMessage({ type: "UPDATE_TIER_INFO", data: userTierInfo }).catch(() => {});
+
+        // Update context menu state based on new limits
+        updateContextMenuState();
+
+    } catch (err) {
+        console.error("[BG] Error fetching user tier info:", err);
+    }
+}
+
+async function incrementSaveCounter() {
+    userTierInfo.currentSaves++;
+    console.log("[BG] Save counter incremented:", userTierInfo.currentSaves);
+    // Update side panel if it's open
+    chrome.runtime.sendMessage({ type: "UPDATE_TIER_INFO", data: userTierInfo }).catch(() => {});
+    updateContextMenuState();
+}
+
+function updateContextMenuState() {
+    const canSave = userTierInfo.currentSaves < userTierInfo.maxSaves;
+    chrome.contextMenus.update("forgor-capture-upload", {
+        enabled: canSave,
+    });
+    chrome.contextMenus.update("forgor-upload-image-url", {
+        enabled: canSave,
+    });
+    console.log(`[BG] Context menu enabled: ${canSave} (Saves: ${userTierInfo.currentSaves}/${userTierInfo.maxSaves})`);
+}
+
 // ---------------------- Server ----------------------
 
 async function uploadScreenshot({ dataUrl, pageUrl = "", pageTitle = "", selectionText = "" }) {
@@ -209,6 +272,9 @@ async function uploadScreenshot({ dataUrl, pageUrl = "", pageTitle = "", selecti
 
         const res = await fetchWithAuth(EP.UPLOAD_IMAGE, { method: "POST", body: form });
         if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+
+        // If upload is successful, increment the counter
+        await incrementSaveCounter();
         
         return res.json().catch(() => ({}));
     } 
@@ -226,6 +292,9 @@ async function uploadImageUrl({ imageUrl, pageUrl = "" }) {
 
         const res = await fetchWithAuth(EP.UPLOAD_IMAGEURL, { method: "POST", body: form });
         if (!res.ok) throw new Error(`Upload URL failed: ${res.status}`);
+        
+        // If upload is successful, increment the counter
+        await incrementSaveCounter();
 
         return res.json().catch(() => ({}));
     } 
@@ -253,6 +322,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
             try {
                 const newAccess = await refreshAccessToken();
                 console.log("[BG] Refreshed access token OK:", newAccess ? "yes" : "no");
+                await fetchUserTierInfo(); // Fetch tier info after successful refresh
             } catch (err) {
                 console.warn("[BG] Refresh failed, clearing tokens", err);
                 await clearTokens();
@@ -266,6 +336,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
         }
         else if (access_token && refresh_token) {
             console.log(`[BG] Got both tokens!`);
+            await fetchUserTierInfo(); // Fetch tier info if tokens already exist
         }
     }
 });
@@ -281,6 +352,9 @@ chrome.action.onClicked.addListener((tab) => {
 
         // Ask the sidepanel to refresh itself if it's already open
         chrome.runtime.sendMessage({ type: "REFRESH_IF_OPEN" }).catch(() => {});
+        
+        // Also fetch user tier info when sidepanel is opened
+        await fetchUserTierInfo();
     });
 });
 
@@ -300,9 +374,20 @@ chrome.runtime.onInstalled.addListener(() => {
         title: "FORGOR: Upload this image",
         contexts: ["image"]
     });
+    
+    // Initialize context menu state
+    updateContextMenuState();
 });
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+    // Check save limits before attempting any action
+    if (userTierInfo.currentSaves >= userTierInfo.maxSaves) {
+        console.warn("[BG] Save limit reached, context menu action blocked.");
+        await setBadge("🚫", "#ff0000");
+        setTimeout(() => clearBadge(), 3000);
+        return; 
+    }
+
     // upload the image the user right-clicked
     if (info.menuItemId === "forgor-upload-image-url") {
         try {
@@ -331,8 +416,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         catch (err) {
             console.error(err);
             await setBadge("❗", "#ff0000");
-            setTimeout(() => clearBadge(), 3000);
         }
+        setTimeout(() => clearBadge(), 3000);
         return; // Prevent falling through to the screenshot branch
     }
     // Existing screenshot menu
@@ -353,8 +438,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         catch (err) {
             console.error(err);
             await setBadge("❗", "#ff0000");
-            setTimeout(() => clearBadge(), 3000);
         }
+        setTimeout(() => clearBadge(), 3000);
         return;
     };
 });
@@ -395,7 +480,21 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
             sendResponse({ ok: true, body: JSON.stringify(result.data || {}), fromCache: false });
             return;
         }
+
+        // Side panel requests tier info
+        if (msg?.type === "GET_TIER_INFO") {
+            sendResponse(userTierInfo);
+            return;
+        }
     })();
 
     return true; // async
+});
+
+// Initial fetch of user tier info when background script starts (e.g., browser start, extension reload)
+// This ensures the context menu is correctly initialized even if the side panel isn't opened first.
+getTokens().then(({ access_token }) => {
+    if (access_token) {
+        fetchUserTierInfo();
+    }
 });

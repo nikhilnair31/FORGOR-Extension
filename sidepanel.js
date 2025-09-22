@@ -21,6 +21,33 @@ async function getActiveTab() {
     return tabs[0] || null;
 }
 
+// ---------------------- Tier & Save Display ----------------------
+
+const userTierEl = document.getElementById("userTier");
+const saveCounterEl = document.getElementById("saveCounter");
+const maxSavesEl = document.getElementById("maxSaves");
+
+function updateTierDisplay(tier) {
+    if (userTierEl) userTierEl.textContent = tier;
+}
+
+function updateSaveCounterDisplay(current, max) {
+    if (saveCounterEl) saveCounterEl.textContent = current;
+    if (maxSavesEl) maxSavesEl.textContent = max;
+}
+
+async function getTierInfoFromBackground() {
+    try {
+        const tierInfo = await chrome.runtime.sendMessage({ type: "GET_TIER_INFO" });
+        if (tierInfo) {
+            updateTierDisplay(tierInfo.tier);
+            updateSaveCounterDisplay(tierInfo.currentSaves, tierInfo.maxSaves);
+        }
+    } catch (error) {
+        console.warn("[SP] Failed to get tier info from background:", error);
+    }
+}
+
 // ---------------------- Bar ----------------------
 
 const refreshBtnEl = document.getElementById("refreshBtn");
@@ -254,6 +281,11 @@ chrome.runtime.onMessage.addListener((msg) => {
             loadImages(true);
         }
     }
+    // Listen for tier info updates from the background script
+    if (msg?.type === "UPDATE_TIER_INFO" && msg.data) {
+        updateTierDisplay(msg.data.tier);
+        updateSaveCounterDisplay(msg.data.currentSaves, msg.data.maxSaves);
+    }
 });
 
 async function loadImages(spin = false) {
@@ -298,3 +330,4 @@ async function loadImages(spin = false) {
 }
 
 loadImages();
+getTierInfoFromBackground();

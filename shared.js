@@ -45,7 +45,8 @@ export const EP = {
     REGISTER:           `${SERVER_URL}/api/register`,
     REFRESH:            `${SERVER_URL}/api/refresh_token`,
     GET_SAVES:          `${SERVER_URL}/api/get_saves_left`,
-    GET_TRACKING_LINKS: `${SERVER_URL}/api/generate-tracking-links`
+    GET_TRACKING_LINKS: `${SERVER_URL}/api/generate-tracking-links`,
+    USER_TIER_INFO:     `${SERVER_URL}/api/user/tier_info`
 };
 
 // ---------------------- Storage ----------------------
