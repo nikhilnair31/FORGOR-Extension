@@ -71,11 +71,6 @@
                 filter: grayscale(0.1) contrast(0.95);
             }
 
-            #app_title {
-                font-size: x-large;
-                color: var(--accent-0);
-            }
-
             /* Masonry layout */
             #grid {
                 flex: 1 1 auto;
@@ -121,14 +116,17 @@
                 align-items: center;
             }
             #refreshBtn {
-                width: 100%;
-                padding: 12px;
-                font-family: "VenusCormier", system-ui, sans-serif;
-                cursor: pointer;
+                width: 32px;          /* adjust button size */
+                height: 32px;
+                padding: 8px;         /* optional, reduce padding */
+                display: flex;
+                align-items: center;
+                justify-content: center;
                 background: var(--accent-0);
-                border: none;
-                border-radius: 0;
-                color: var(--accent-1);
+            }
+            #refreshBtn svg {
+                width: 16px;          /* final icon size */
+                height: 16px;
             }
             #savesLeftTxt {
                 padding: 12px;
@@ -218,17 +216,13 @@
                 align-items: center;
                 padding: 12px;
             }
-            .tier-info {
+            .tierInfo {
                 display: flex;
                 flex-direction: column;
-                font-size: 13px;
+                font-size: 14px;
                 color: var(--base-2);
             }
-            .tier-info span {
-                display: block;
-                line-height: 1.2;
-            }
-            .tier-info b {
+            .tierInfo b {
                 color: var(--accent-0);
                 font-weight: normal;
             }
@@ -238,13 +232,17 @@
     <body>
         <header>
             <div class="header-top">
-                <span id="app_title">FORGOR</span>
-                <div class="tier-info">
+                <button id="refreshBtn" type="button" title="Refresh">
+                    <svg fill="#a67bf2" width="24" height="24" viewBox="0 0 367.14 367.14" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M336.554,86.871c-11.975-18.584-27.145-34.707-44.706-47.731L330.801,0H217.436v113.91L270.4,60.691 c40.142,28.131,65.042,74.724,65.042,124.571c0,83.744-68.13,151.874-151.874,151.874S31.694,269.005,31.694,185.262 c0-58.641,32.781-111.009,85.551-136.669l-13.119-26.979C73.885,36.318,48.315,59.1,30.182,87.494 c-18.637,29.184-28.488,62.991-28.488,97.768c0,100.286,81.588,181.874,181.874,181.874s181.874-81.588,181.874-181.874 C365.442,150.223,355.453,116.201,336.554,86.871z"/>
+                    </svg>
+                </button>
+
+                <div class="tierInfo">
                     <span>Tier: <b id="userTier">Loading...</b></span>
                     <span>Saves: <b id="saveCounter">0</b> / <b id="maxSaves">0</b></span>
                 </div>
             </div>
-            <button id="refreshBtn" type="button" title="Refresh">REFRESH</button>
         </header>
         <main id="grid"></main>
         <div id="overlay" aria-hidden="true">
