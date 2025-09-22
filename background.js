@@ -222,7 +222,7 @@ async function fetchUserTierInfo() {
             currentSaves: data.current_saves ?? 0,
             maxSaves: data.max_saves ?? 5,
         };
-        console.log("[BG] User tier info fetched:", userTierInfo);
+        // console.log("[BG] User tier info fetched:", userTierInfo);
 
         // Update side panel if it's open
         chrome.runtime.sendMessage({ type: "UPDATE_TIER_INFO", data: userTierInfo }).catch(() => {});
@@ -245,13 +245,15 @@ async function incrementSaveCounter() {
 
 function updateContextMenuState() {
     const canSave = userTierInfo.currentSaves < userTierInfo.maxSaves;
+    
     chrome.contextMenus.update("forgor-capture-upload", {
         enabled: canSave,
     });
     chrome.contextMenus.update("forgor-upload-image-url", {
         enabled: canSave,
     });
-    console.log(`[BG] Context menu enabled: ${canSave} (Saves: ${userTierInfo.currentSaves}/${userTierInfo.maxSaves})`);
+
+    // console.log(`[BG] Context menu enabled: ${canSave} (Saves: ${userTierInfo.currentSaves}/${userTierInfo.maxSaves})`);
 }
 
 // ---------------------- Server ----------------------
@@ -364,14 +366,14 @@ chrome.runtime.onInstalled.addListener(() => {
     // Existing screenshot menu
     chrome.contextMenus.create({
         id: "forgor-capture-upload",
-        title: "FORGOR: Take screenshot & upload",
+        title: "FORGOR: Save screenshot",
         contexts: ["page", "selection", "image", "link", "video", "audio"]
     });
 
     // Upload the specific image you right-clicked
     chrome.contextMenus.create({
         id: "forgor-upload-image-url",
-        title: "FORGOR: Upload this image",
+        title: "FORGOR: Save image",
         contexts: ["image"]
     });
     

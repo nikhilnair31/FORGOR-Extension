@@ -256,8 +256,35 @@ export function sanitizeLinkLabel(url) {
     try {
         const u = new URL(url);
         const host = (u.host || "").replace(/^www\./, "");
-        const path = u.pathname.replace(/^\/+|\/+$/g, ""); // trim leading/trailing /
-        return path ? `${host}/${path}` : host;
+        let path = u.pathname.replace(/^\/+|\/+$/g, ""); // trim leading/trailing /
+
+        // Special handling for common social platforms
+        if (host.includes("reddit.com")) {
+            if (path.startsWith("user/") || path.startsWith("u/")) {
+                path = path.replace(/^user\//, "").replace(/^u\//, "");
+                return `u/${path}`;
+            } else if (path.startsWith("r/")) {
+                return `r/${path.slice(2)}`; // subreddit
+            }
+        } else if (host.includes("x.com") || host.includes("twitter.com")) {
+            return `@${path.replace(/^@/, "")}`;
+        } else if (host.includes("instagram.com")) {
+            return `@${path.replace(/^@/, "")}`;
+        } else if (host.includes("tiktok.com")) {
+            return `@${path.replace(/^@/, "")}`;
+        } else if (host.includes("linkedin.com")) {
+            return path.replace(/^in\//, "");
+        } else if (host.includes("github.com")) {
+            return path;
+        } else if (host.includes("medium.com")) {
+            return `@${path.replace(/^@/, "")}`;
+        }
+
+        // Default: host + short path snippet (first 2 segments)
+        const segments = path.split("/").filter(Boolean).slice(0, 2);
+        const shortPath = segments.join("/");
+        return shortPath ? `${host}/${shortPath}` : host;
+
     } catch {
         return url;
     }
@@ -265,15 +292,44 @@ export function sanitizeLinkLabel(url) {
 
 export function resolveHandleToUrl(appName, handle) {
     if (!appName || !handle) return handle;
+
+    const cleanHandle = handle.replace(/^@/, ""); // Remove leading @
+
     switch (appName.toLowerCase()) {
         case "twitter":
+            return `https://twitter.com/${cleanHandle}`;
         case "x":
-            return `https://x.com/${handle.replace(/^@/, "")}`;
+            return `https://x.com/${cleanHandle}`;
+        case "reddit":
+            if (cleanHandle.toLowerCase().startsWith("r/")) {
+                // Subreddit
+                return `https://www.reddit.com/${cleanHandle}`;
+            } else if (cleanHandle.toLowerCase().startsWith("u/")) {
+                // User
+                return `https://www.reddit.com/${cleanHandle}`;
+            } else {
+                // Default to user if no prefix
+                return `https://www.reddit.com/user/${cleanHandle}`;
+            }
         case "instagram":
-            return `https://instagram.com/${handle.replace(/^@/, "")}`;
+            return `https://instagram.com/${cleanHandle}`;
         case "tiktok":
-            return `https://tiktok.com/@${handle.replace(/^@/, "")}`;
+            return `https://www.tiktok.com/@${cleanHandle}`;
+        case "facebook":
+            return `https://www.facebook.com/${cleanHandle}`;
+        case "linkedin":
+            return `https://www.linkedin.com/in/${cleanHandle}`;
+        case "youtube":
+            return `https://www.youtube.com/@${cleanHandle}`;
+        case "github":
+            return `https://github.com/${cleanHandle}`;
+        case "medium":
+            return `https://medium.com/@${cleanHandle}`;
+        case "pinterest":
+            return `https://www.pinterest.com/${cleanHandle}`;
+        case "snapchat":
+            return `https://www.snapchat.com/add/${cleanHandle}`;
         default:
-            return handle;
+            return handle; // fallback: return the handle as-is
     }
 }

@@ -199,11 +199,13 @@ async function renderLinks(tagsAny) {
     const appName = tagsObj.app_name || "";
     const links   = Array.isArray(tagsObj.links) ? tagsObj.links : [];
     const handles = Array.isArray(tagsObj.account_identifiers) ? tagsObj.account_identifiers : [];
+    console.log(`tagsObj: ${JSON.stringify(tagsObj)}`);
 
     // Collect raw + handle URLs
     const handleUrls = handles.map(h => resolveHandleToUrl(appName, h)).filter(Boolean);
     const allUrls = [...links, ...handleUrls];
     if (!allUrls.length) return;
+    console.log(`allUrls: ${JSON.stringify(allUrls)}`);
 
     // Fetch tracking versions
     const trackingLinks = await getTrackingLinks(allUrls);
