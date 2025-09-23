@@ -5,6 +5,7 @@ import {
     FLUSH_MS,
     STABILITY_THRESHOLD,
     IDLE_THRESHOLD,
+    CLEAR_IN_TIME,
 
     EP,
     fetchWithAuth,
@@ -37,7 +38,6 @@ function getCache(searchText) {
 
 let actionBuffer = new Set();
 let flushTimer = null;
-let tabChangeTimer = null;
 let lastQuery = null; // ✅ FIXED: declared
 
 chrome.tabs.onActivated.addListener(async ({ tabId }) => {
@@ -45,7 +45,6 @@ chrome.tabs.onActivated.addListener(async ({ tabId }) => {
         const tab = await chrome.tabs.get(tabId);
         if (!tab?.url) return;
 
-        resetStabilityTimer(tab);
         queueUserAction(tab);
     } 
     catch (e) {
@@ -58,7 +57,6 @@ chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
         if (!(info.status === "complete" || "title" in info || "url" in info)) return;
         if (!tab?.url) return;
         if (info.url || info.title) {
-            resetStabilityTimer(tab);
             queueUserAction(tab);
         }
     } catch (e) {
@@ -75,9 +73,7 @@ function queueUserAction(tab) {
     const key = `${title} ${domain}`.trim();
     if (!key) return;
 
-    const beforeSize = actionBuffer.size;
     actionBuffer.add(key);
-    const afterSize = actionBuffer.size;
 
     // schedule flush
     if (flushTimer) {
@@ -99,7 +95,6 @@ async function flushActions() {
         await clearBadge();
         return;
     }
-
     if (currentQuery === lastQuery) {
         return;
     }
@@ -108,7 +103,10 @@ async function flushActions() {
     try {
         const { has } = await hasResultsFor(currentQuery);
         if (has) {
+            console.log(`flushActions setBadge ●`);
+            
             setBadge("●", "#3b82f6");
+            setTimeout(() => clearBadge(), CLEAR_IN_TIME);
         } else {
             await clearBadge();
         }
@@ -116,38 +114,6 @@ async function flushActions() {
         console.error("[flushActions error]", err);
         await clearBadge();
     }
-}
-
-function resetStabilityTimer(tab) {
-    if (tabChangeTimer) {
-        clearTimeout(tabChangeTimer);
-    }
-
-    tabChangeTimer = setTimeout(() => {
-        let domain = "";
-        try { domain = new URL(tab.url).hostname; } catch {}
-        const title = (tab.title || "").trim();
-        const searchText = `${title} ${domain}`.trim();
-        if (!searchText) {
-            return;
-        }
-
-        chrome.idle.queryState(IDLE_THRESHOLD / 1000, (state) => {
-            if (state === "idle") {
-                hasResultsFor(searchText).then(result => {
-                    if (result.has) {
-                        setBadge("●", "#3b82f6");
-                    } else {
-                        clearBadge();
-                    }
-                }).catch(err => {
-                    clearBadge();
-                });
-            } else {
-                console.log("[resetStabilityTimer] user active → skip badge update");
-            }
-        });
-    }, STABILITY_THRESHOLD);
 }
 
 async function hasResultsFor(searchText) {
@@ -386,7 +352,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     if (userTierInfo.currentSaves >= userTierInfo.maxSaves) {
         console.warn("[BG] Save limit reached, context menu action blocked.");
         await setBadge("🚫", "#ff0000");
-        setTimeout(() => clearBadge(), 3000);
+        setTimeout(() => clearBadge(), CLEAR_IN_TIME);
         return; 
     }
 
@@ -419,7 +385,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
             console.error(err);
             await setBadge("❗", "#ff0000");
         }
-        setTimeout(() => clearBadge(), 3000);
+        setTimeout(() => clearBadge(), CLEAR_IN_TIME);
         return; // Prevent falling through to the screenshot branch
     }
     // Existing screenshot menu
@@ -441,7 +407,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
             console.error(err);
             await setBadge("❗", "#ff0000");
         }
-        setTimeout(() => clearBadge(), 3000);
+        setTimeout(() => clearBadge(), CLEAR_IN_TIME);
         return;
     };
 });

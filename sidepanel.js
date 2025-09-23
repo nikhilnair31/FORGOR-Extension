@@ -2,7 +2,6 @@
 
 import { 
     PLACEHOLDER_URL,
-    SKIP_PATTERNS,
 
     EP, 
     fetchWithAuth, 
