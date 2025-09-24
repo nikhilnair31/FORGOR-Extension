@@ -3,8 +3,6 @@
 import {
     CACHE_TTL_MS,
     FLUSH_MS,
-    STABILITY_THRESHOLD,
-    IDLE_THRESHOLD,
     CLEAR_IN_TIME,
 
     EP,
@@ -103,8 +101,6 @@ async function flushActions() {
     try {
         const { has } = await hasResultsFor(currentQuery);
         if (has) {
-            console.log(`flushActions setBadge ●`);
-            
             setBadge("●", "#3b82f6");
             setTimeout(() => clearBadge(), CLEAR_IN_TIME);
         } else {
@@ -159,9 +155,10 @@ async function hasResultsFor(searchText) {
 // ---------------------- User Tier and Saves ----------------------
 
 let userTierInfo = {
-    tier: "Free", // Default tier
+    tier: "Free",
     currentSaves: 0,
-    maxSaves: 5, // Default max saves for free tier
+    maxSaves: 3,
+    uploadsLeft: 3,
 };
 
 async function fetchUserTierInfo() {
@@ -186,10 +183,11 @@ async function fetchUserTierInfo() {
         userTierInfo = {
             tier: data.tier || "Free",
             currentSaves: data.current_saves ?? 0,
-            maxSaves: data.max_saves ?? 5,
+            maxSaves: data.max_saves ?? 3,
+            uploadsLeft: data.uploads_left ?? 3
         };
-        // console.log("[BG] User tier info fetched:", userTierInfo);
-
+        // console.log("[BG] fetchUserTierInfo userTierInfo:", userTierInfo);
+        
         // Update side panel if it's open
         chrome.runtime.sendMessage({ type: "UPDATE_TIER_INFO", data: userTierInfo }).catch(() => {});
 
@@ -207,19 +205,6 @@ async function incrementSaveCounter() {
     // Update side panel if it's open
     chrome.runtime.sendMessage({ type: "UPDATE_TIER_INFO", data: userTierInfo }).catch(() => {});
     updateContextMenuState();
-}
-
-function updateContextMenuState() {
-    const canSave = userTierInfo.currentSaves < userTierInfo.maxSaves;
-    
-    chrome.contextMenus.update("forgor-capture-upload", {
-        enabled: canSave,
-    });
-    chrome.contextMenus.update("forgor-upload-image-url", {
-        enabled: canSave,
-    });
-
-    // console.log(`[BG] Context menu enabled: ${canSave} (Saves: ${userTierInfo.currentSaves}/${userTierInfo.maxSaves})`);
 }
 
 // ---------------------- Server ----------------------
@@ -327,6 +312,19 @@ chrome.action.onClicked.addListener((tab) => {
 });
 
 // ---------------------- Context Menu ----------------------
+
+function updateContextMenuState() {
+    const canSave = userTierInfo.uploadsLeft > 0;
+    
+    chrome.contextMenus.update("forgor-capture-upload", {
+        enabled: canSave,
+    });
+    chrome.contextMenus.update("forgor-upload-image-url", {
+        enabled: canSave,
+    });
+
+    // console.log(`[BG] Context menu enabled: ${canSave} (Saves: ${userTierInfo.currentSaves}/${userTierInfo.maxSaves})`);
+}
 
 chrome.runtime.onInstalled.addListener(() => {
     // Existing screenshot menu

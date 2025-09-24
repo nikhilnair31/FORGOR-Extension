@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "FORGOR: No-Organize AI Memory",
-    "version": "1.0.1",
+    "version": "1.0.3",
     "description": "Save screenshots and images from any site to your FORGOR account, then view and manage them in a side panel.",
     "action": {
         "default_title": "FORGOR"
@@ -11,8 +11,7 @@
         "storage",
         "tabs",
         "activeTab",
-        "sidePanel",
-        "idle"
+        "sidePanel"
     ],
     "background": {
         "service_worker": "background.js",
