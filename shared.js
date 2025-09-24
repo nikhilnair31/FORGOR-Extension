@@ -257,6 +257,7 @@ export function sanitizeLinkLabel(url) {
         const u = new URL(url);
         const host = (u.host || "").replace(/^www\./, "");
         let path = u.pathname.replace(/^\/+|\/+$/g, ""); // trim leading/trailing /
+        console.log(`path: ${path}`);
 
         // Special handling for common social platforms
         if (host.includes("reddit.com")) {
@@ -278,6 +279,11 @@ export function sanitizeLinkLabel(url) {
             return path;
         } else if (host.includes("medium.com")) {
             return `@${path.replace(/^@/, "")}`;
+        } else if (host.includes("google.com")) {
+            // Extract the search query
+            const params = new URLSearchParams(u.search);
+            const q = params.get("q") || "";
+            return `${decodeURIComponent(q).replace(/\+/g, " ")}`;
         }
 
         // Default: host + short path snippet (first 2 segments)

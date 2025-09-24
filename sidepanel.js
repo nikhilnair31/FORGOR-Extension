@@ -208,6 +208,7 @@ async function renderLinks(tagsAny) {
 
     // Fetch tracking versions
     const trackingLinks = await getTrackingLinks(allUrls);
+    console.log(`trackingLinks: ${JSON.stringify(trackingLinks)}`);
     for (const obj of trackingLinks) {
         const original = obj?.original;
         const tracking = obj?.tracking;
