@@ -52,6 +52,7 @@ async function getTierInfoFromBackground() {
 let searchDebounce = null;
 const refreshBtnEl = document.getElementById("refreshBtn");
 const searchInputEl = document.getElementById("searchInput");
+const domainToggleEl = document.getElementById("enableDomain");
 
 refreshBtnEl?.addEventListener("click", () => {
     loadImages(true);
@@ -66,6 +67,20 @@ searchInputEl?.addEventListener("keydown", e => {
         else loadImages(true); // fall back to default prepopulated search
     }, 500);
 });
+
+async function getDisabledDomains() {
+    return new Promise((resolve) => {
+        chrome.storage.sync.get(["disabledDomains"], (res) => {
+        resolve(res.disabledDomains || []);
+        });
+    });
+}
+
+async function setDisabledDomains(arr) {
+    return new Promise((resolve) => {
+        chrome.storage.sync.set({ disabledDomains: arr }, resolve);
+    });
+}
 
 // ---------------------- Lightbox ----------------------
 
@@ -309,6 +324,17 @@ async function loadImages(spin = false, overrideText = null) {
     const title = tab.title || "";
     let domain = ""; 
     try { domain = new URL(tab.url).hostname || ""; } catch {}
+
+    // Handle domain toggle state
+    const disabledDomains = await getDisabledDomains();
+    const isDisabled = disabledDomains.includes(domain);
+    if (domainToggleEl) domainToggleEl.checked = !isDisabled;
+
+    // If disabled, show message and skip call
+    if (isDisabled) {
+        gridEl.innerHTML = `<div class="empty">Suggestions disabled for ${domain}</div>`;
+        return;
+    }
 
     const baseText = `${title} ${domain}`.trim();
     const searchText = overrideText || baseText;
