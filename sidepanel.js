@@ -49,10 +49,22 @@ async function getTierInfoFromBackground() {
 
 // ---------------------- Bar ----------------------
 
+let searchDebounce = null;
 const refreshBtnEl = document.getElementById("refreshBtn");
+const searchInputEl = document.getElementById("searchInput");
 
 refreshBtnEl?.addEventListener("click", () => {
     loadImages(true);
+});
+
+// Enter key shortcut
+searchInputEl?.addEventListener("keydown", e => {
+    const q = searchInputEl?.value?.trim();
+    if (searchDebounce) clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => {
+        if (q) loadImages(true, q);
+        else loadImages(true); // fall back to default prepopulated search
+    }, 500);
 });
 
 // ---------------------- Lightbox ----------------------
@@ -290,19 +302,24 @@ chrome.runtime.onMessage.addListener((msg) => {
     }
 });
 
-async function loadImages(spin = false) {
+async function loadImages(spin = false, overrideText = null) {
     const tab = await getActiveTab();
     if (!tab?.url) { render([]); return; }
 
     const title = tab.title || "";
-    let domain = ""; try { domain = new URL(tab.url).hostname || ""; } catch {}
+    let domain = ""; 
+    try { domain = new URL(tab.url).hostname || ""; } catch {}
+
+    const baseText = `${title} ${domain}`.trim();
+    const searchText = overrideText || baseText;
+
+    // Prepopulate input when sidebar opens
+    if (!overrideText && searchInputEl) searchInputEl.value = baseText;
 
     if (spin) gridEl.innerHTML = `<div class="empty">LOADING...</div>`;
 
     const { access_token } = await getTokens();
     if (!access_token) { render([]); return; }
-
-    const searchText = `${title} ${domain}`.trim();
 
     try {
         // Ask background for cached-or-fetch
