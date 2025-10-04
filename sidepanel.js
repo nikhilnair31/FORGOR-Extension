@@ -53,6 +53,7 @@ let searchDebounce = null;
 const refreshBtnEl = document.getElementById("refreshBtn");
 const searchInputEl = document.getElementById("searchInput");
 const domainToggleEl = document.getElementById("enableDomain");
+const autoRefreshEl = document.getElementById("autoRefresh");
 
 refreshBtnEl?.addEventListener("click", () => {
     loadImages(true);
@@ -81,6 +82,31 @@ async function setDisabledDomains(arr) {
         chrome.storage.sync.set({ disabledDomains: arr }, resolve);
     });
 }
+
+async function getAutoRefreshState() {
+    return new Promise((resolve) => {
+        chrome.storage.sync.get(["autoRefreshEnabled"], (res) => {
+        resolve(Boolean(res.autoRefreshEnabled));
+        });
+    });
+}
+
+async function setAutoRefreshState(enabled) {
+    return new Promise((resolve) => {
+        chrome.storage.sync.set({ autoRefreshEnabled: enabled }, resolve);
+    });
+}
+
+autoRefreshEl?.addEventListener("change", async () => {
+    const enabled = autoRefreshEl.checked;
+    await setAutoRefreshState(enabled);
+    console.log(`[SP] Auto-refresh on tab change: ${enabled ? "ON" : "OFF"}`);
+});
+
+// Load saved toggle state when sidebar opens
+getAutoRefreshState().then(enabled => {
+    if (autoRefreshEl) autoRefreshEl.checked = enabled;
+});
 
 // ---------------------- Lightbox ----------------------
 

@@ -43,6 +43,16 @@ chrome.tabs.onActivated.addListener(async ({ tabId }) => {
         const tab = await chrome.tabs.get(tabId);
         if (!tab?.url) return;
 
+        // Auto-refresh sidepanel if toggle is enabled
+        const { autoRefreshEnabled } = await chrome.storage.sync.get(["autoRefreshEnabled"]);
+        if (autoRefreshEnabled) {
+            try {
+                chrome.runtime.sendMessage({ type: "REFRESH_IF_OPEN" }).catch(() => {});
+            } catch (e) {
+                console.warn("[BG] autoRefresh message failed", e);
+            }
+        }
+
         queueUserAction(tab);
     } 
     catch (e) {

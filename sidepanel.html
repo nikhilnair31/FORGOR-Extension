@@ -257,6 +257,24 @@
                 height: 16px;
             }
 
+            .toggle-group {
+                display: flex;
+                flex-direction: column;
+                background: var(--base-1);
+                padding: 8px 12px;
+                gap: 6px;
+            }
+            .toggle-group label {
+                color: var(--accent-0x);
+                font-size: 14px;
+            }
+            .toggle-group input[type="checkbox"] {
+                accent-color: var(--accent-1);
+                width: 16px;
+                height: 16px;
+            }
+
+
         </style>
     </head>
     <body>
@@ -276,9 +294,15 @@
             <div class="search-box">
                 <input id="searchInput" type="text" placeholder="Search your saved content…" />
             </div>
-            <div class="domain-toggle">
-                <input type="checkbox" id="enableDomain" />
-                <label for="enableDomain">Enable suggestions on this domain</label>
+            <div class="toggle-group">
+                <div class="domain-toggle">
+                    <input type="checkbox" id="enableDomain" />
+                    <label for="enableDomain">Enable suggestions on this domain</label>
+                </div>
+                <div class="auto-refresh-toggle">
+                    <input type="checkbox" id="autoRefresh" />
+                    <label for="autoRefresh">Auto-refresh on tab change</label>
+                </div>
             </div>
         </header>
         <main id="grid"></main>
