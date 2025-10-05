@@ -52,50 +52,21 @@ async function getTierInfoFromBackground() {
 let searchDebounce = null;
 const refreshBtnEl = document.getElementById("refreshBtn");
 const searchInputEl = document.getElementById("searchInput");
-const domainToggleEl = document.getElementById("enableDomain");
 const autoRefreshEl = document.getElementById("autoRefresh");
+const domainToggleEl = document.getElementById("enableDomain");
 
 refreshBtnEl?.addEventListener("click", () => {
     loadImages(true);
 });
 
-// Enter key shortcut
 searchInputEl?.addEventListener("keydown", e => {
     const q = searchInputEl?.value?.trim();
     if (searchDebounce) clearTimeout(searchDebounce);
     searchDebounce = setTimeout(() => {
         if (q) loadImages(true, q);
-        else loadImages(true); // fall back to default prepopulated search
+        else loadImages(true);
     }, 500);
 });
-
-async function getDisabledDomains() {
-    return new Promise((resolve) => {
-        chrome.storage.sync.get(["disabledDomains"], (res) => {
-        resolve(res.disabledDomains || []);
-        });
-    });
-}
-
-async function setDisabledDomains(arr) {
-    return new Promise((resolve) => {
-        chrome.storage.sync.set({ disabledDomains: arr }, resolve);
-    });
-}
-
-async function getAutoRefreshState() {
-    return new Promise((resolve) => {
-        chrome.storage.sync.get(["autoRefreshEnabled"], (res) => {
-        resolve(Boolean(res.autoRefreshEnabled));
-        });
-    });
-}
-
-async function setAutoRefreshState(enabled) {
-    return new Promise((resolve) => {
-        chrome.storage.sync.set({ autoRefreshEnabled: enabled }, resolve);
-    });
-}
 
 autoRefreshEl?.addEventListener("change", async () => {
     const enabled = autoRefreshEl.checked;
@@ -103,10 +74,44 @@ autoRefreshEl?.addEventListener("change", async () => {
     console.log(`[SP] Auto-refresh on tab change: ${enabled ? "ON" : "OFF"}`);
 });
 
-// Load saved toggle state when sidebar opens
-getAutoRefreshState().then(enabled => {
-    if (autoRefreshEl) autoRefreshEl.checked = enabled;
+// Toggle Exclude Domain
+domainToggleEl?.addEventListener("change", async () => {
+    const tab = await getActiveTab();
+    if (!tab?.url) return;
+    let domain = "";
+    try {
+        domain = new URL(tab.url).hostname;
+    } catch {}
+
+    const disabledDomains = await getDisabledDomains();
+    const isDisabled = disabledDomains.includes(domain);
+
+    if (domainToggleEl.checked) {
+        // include (remove from excluded list)
+        if (isDisabled) {
+            await setDisabledDomains(disabledDomains.filter((d) => d !== domain));
+            console.log(`[SP] Re-included domain: ${domain}`);
+        }
+    } else {
+        // exclude (add to excluded list)
+        if (!isDisabled) {
+            disabledDomains.push(domain);
+            await setDisabledDomains(disabledDomains);
+            console.log(`[SP] Excluded domain: ${domain}`);
+        }
+    }
+
+    await loadImages(true);
 });
+
+async function getDisabledDomains() {
+  return new Promise((r) =>
+    chrome.storage.sync.get(["disabledDomains"], (res) => r(res.disabledDomains || []))
+  );
+}
+async function setDisabledDomains(arr) {
+  return new Promise((r) => chrome.storage.sync.set({ disabledDomains: arr }, r));
+}
 
 // ---------------------- Lightbox ----------------------
 
@@ -286,7 +291,7 @@ async function renderSequential(items) {
     }
 
     for (const it of items) {
-        console.log(`it: ${JSON.stringify(it)}`);
+        // console.log(`it: ${JSON.stringify(it)}`);
         
         const card = document.createElement("div");
         card.className = "card";
@@ -325,6 +330,31 @@ function render(items) {
 
 async function getTokens() {
   return new Promise(r => chrome.runtime.sendMessage({ type: "GET_TOKENS" }, r));
+}
+
+// ---------------------- Domain Toggle Auto-Update ----------------------
+
+chrome.tabs.onActivated.addListener(async () => {
+    await checkAndUpdateDomainToggle();
+});
+chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
+    if (info.status === "complete") await checkAndUpdateDomainToggle();
+});
+
+async function checkAndUpdateDomainToggle() {
+    const tab = await getActiveTab();
+    if (!tab?.url || !domainToggleEl) return;
+
+    let domain = "";
+    try {
+        domain = new URL(tab.url).hostname;
+    } catch {}
+
+    const disabledDomains = await getDisabledDomains();
+    const isDisabled = disabledDomains.includes(domain);
+
+    // Toggle switch: ON = enabled (not excluded)
+    domainToggleEl.checked = !isDisabled;
 }
 
 // ---------------------- Loading ----------------------

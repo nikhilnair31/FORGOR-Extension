@@ -42,16 +42,10 @@ chrome.tabs.onActivated.addListener(async ({ tabId }) => {
     try {
         const tab = await chrome.tabs.get(tabId);
         if (!tab?.url) return;
-
-        // Auto-refresh sidepanel if toggle is enabled
-        const { autoRefreshEnabled } = await chrome.storage.sync.get(["autoRefreshEnabled"]);
-        if (autoRefreshEnabled) {
-            try {
-                chrome.runtime.sendMessage({ type: "REFRESH_IF_OPEN" }).catch(() => {});
-            } catch (e) {
-                console.warn("[BG] autoRefresh message failed", e);
-            }
-        }
+        
+        if (await isDomainExcluded(tab.url)) return;
+        
+        await triggerAutoRefreshIfEnabled();
 
         queueUserAction(tab);
     } 
@@ -64,13 +58,42 @@ chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
     try {
         if (!(info.status === "complete" || "title" in info || "url" in info)) return;
         if (!tab?.url) return;
-        if (info.url || info.title) {
-            queueUserAction(tab);
-        }
+        
+        if (await isDomainExcluded(tab.url)) return;
+
+        if (info.url || info.title) queueUserAction(tab);
     } catch (e) {
         console.warn("[BG] onUpdated error", e);
     }
 });
+
+async function isDomainExcluded(url) {
+    if (!url) return false;
+
+    let domain = "";
+    try {
+        domain = new URL(url).hostname;
+    } catch {
+        return false;
+    }
+    const { disabledDomains = [] } = await chrome.storage.sync.get(["disabledDomains"]);
+    if (disabledDomains.includes(domain)) {
+        console.log(`[BG] Skipping domain ${domain} (excluded by user)`);
+        return true;
+    }
+    return false;
+}
+
+async function triggerAutoRefreshIfEnabled() {
+    const { autoRefreshEnabled } = await chrome.storage.sync.get(["autoRefreshEnabled"]);
+    if (!autoRefreshEnabled) return;
+
+    try {
+        await chrome.runtime.sendMessage({ type: "REFRESH_IF_OPEN" });
+    } catch (e) {
+        console.warn("[BG] autoRefresh message failed", e);
+    }
+}
 
 // Push a user action into the buffer and (re)start the flush timer
 function queueUserAction(tab) {
