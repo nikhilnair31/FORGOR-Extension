@@ -172,7 +172,17 @@
         .empty {
             color: var(--base-2);
             text-align: center;
-            padding: 16px;
+            padding: 24px 8px;
+            font-size: 13px;
+            line-height: 1.4;
+            word-break: break-word;
+            opacity: 0.8;
+
+            /* Fix width issue */
+            display: block;
+            width: 100%;
+            column-span: all;
+            box-sizing: border-box;
         }
         
         /* Footer info */
