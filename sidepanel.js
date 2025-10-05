@@ -105,12 +105,15 @@ domainToggleEl?.addEventListener("change", async () => {
 });
 
 async function getDisabledDomains() {
-  return new Promise((r) =>
-    chrome.storage.sync.get(["disabledDomains"], (res) => r(res.disabledDomains || []))
-  );
+    return new Promise((r) =>
+        chrome.storage.sync.get(["disabledDomains"], (res) => r(res.disabledDomains || []))
+    );
 }
 async function setDisabledDomains(arr) {
   return new Promise((r) => chrome.storage.sync.set({ disabledDomains: arr }, r));
+}
+async function setAutoRefreshState(enabled) {
+  return new Promise((r) => chrome.storage.sync.set({ autoRefreshEnabled: enabled }, r));
 }
 
 // ---------------------- Lightbox ----------------------
