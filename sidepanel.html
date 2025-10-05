@@ -1,324 +1,328 @@
-<!-- sidepanel.html -->
-
 <!DOCTYPE html>
 <html>
-    <head>
-        <meta charset="utf-8" />
-        <title>Related Images</title>
-        <style>
-            @font-face {
-                font-family: "VenusCormier";
-                src: url("assets/fonts/venus_cormier.otf") format("opentype");
-                font-weight: normal;
-                font-style: normal;
-            }
-            :root { 
-                color-scheme: dark; 
-                --base-0: #1e1c2c;
-                --base-1: #221f31;
-                --base-2: #7b7889;
-                --accent-0: #deff96;
-                --accent-0x: #ECFFCF;
-                --accent-1: #A67BF2;
-                --accent-1t: #337553B0;
-            }
-            body { 
-                display: flex; 
-                flex-direction: column; 
-                min-height: 100dvh; 
-                margin: 0; 
-                font-family: "VenusCormier", system-ui, sans-serif;
-                background: var(--base-0);
-                color: white;
-            }
-            header { 
-                flex: 0 0 auto; 
-                flex-direction: column;
-                padding: 12px;
-                z-index: 1; 
-                align-items: stretch;
-                background-color: var(--base-1);
-            }
-            .card { 
-                border: 1px solid rgba(255,255,255,.1); 
-                border-radius: 0;      /* <-- HARSH corners */
-                overflow: hidden; 
-            }
-            .thumb { 
-                width: 100%; 
-                object-fit: cover; 
-                display: block; 
-                cursor: zoom-in;
-            }
-            .empty { 
-                padding: 16px;
-                color: var(--base-2);
-                text-align: center;
-                width: 100%;              /* Ensure it takes full width of its parent */
-            }
-            button { 
-                padding: 12px; 
-                font-family: "VenusCormier", system-ui, sans-serif;
-                cursor: pointer; 
-                background: var(--accent-1t);
-                border: none;
-                border-radius: 0;   /* <-- HARSH corners */
-                color: var(--accent-0x);
-            }
-
-            /* placeholder styling */
-            .thumb[data-placeholder="1"] {
-                filter: grayscale(0.1) contrast(0.95);
-            }
-
-            /* Masonry layout */
-            #grid {
-                flex: 1 1 auto;
-                column-width: 260px;
-                column-gap: 12px;
-                padding: 12px;
-            }
-            #grid:has(.empty) {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            .card {
-                display: inline-block;
-                width: 100%;
-                margin: 0 0 12px;
-                border: 1px solid rgba(255,255,255,.12);
-                border-radius: 0;   /* <-- HARSH corners */
-                overflow: hidden;
-                break-inside: avoid;
-            }
-
-            /* responsive */
-            @media (max-width: 900px)  { #grid { column-width: 220px; } }
-            @media (max-width: 600px)  { #grid { column-width: 180px; } }
-
-            /* Lightbox */
-            #deleteBtn {
-                right: 80px; 
-                background: #a22; 
-                color: #fff;
-            }
-            
-            #linksBox {
-                padding: 10px 14px;
-                background: var(--base-1);
-                display: flex;
-                gap: 16px;
-                flex-direction: row;
-                flex-wrap: nowrap;
-                justify-content: flex-start;
-                align-items: center;
-            }
-            #refreshBtn {
-                width: 32px;          /* adjust button size */
-                height: 32px;
-                padding: 8px;         /* optional, reduce padding */
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                background: var(--accent-0);
-            }
-            #refreshBtn svg {
-                width: 16px;          /* final icon size */
-                height: 16px;
-            }
-            #savesLeftTxt {
-                padding: 12px;
-                font-family: "VenusCormier", system-ui, sans-serif;
-                cursor: pointer;
-                text-align: center;
-                border: none;
-                border-radius: 0;
-                color: var(--accent-0);
-                background: var(--accent-1);
-            }
-
-            #linksBox a {
-                display: block;
-                color: var(--accent-0);
-                font-weight: 500;
-                margin: 4px 0;
-                text-decoration: none;
-                word-break: break-all;
-            }
-
-            #linksBox a:hover {
-                color: var(--accent-1);
-                text-decoration: underline;
-            }
-
-            #overlay {
+<head>
+    <meta charset="utf-8" />
+    <title>Related Images</title>
+    <style>
+        @font-face {
+            font-family: "VenusCormier";
+            src: url("assets/fonts/venus_cormier.otf") format("opentype");
+        }
+        
+        :root {
+            color-scheme: dark;
+            --base-0: #1e1c2c;
+            --base-1: #2a263c;
+            --base-2: #7b7889;
+            --accent-0: #deff96;
+            --accent-0t: #deff96866;
+            --accent-1: #a67bf2;
+            --danger: #b91c1c;
+        }
+        
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100dvh;
+            margin: 0;
+            font-family: "VenusCormier", system-ui, sans-serif;
+            background: var(--base-0);
+            color: white;
+        }
+        
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--base-1);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 8px 6px;
+        }
+        
+        /* Search bar + refresh */
+        .search-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px; /* now visibly separates refresh and bar */
+        }
+        
+        .search-wrapper {
+            position: relative;
+            flex: 1;
+            margin-right: 36px;
+        }
+        
+        .search-icon {
+            position: absolute;
+            top: 50%;
+            left: 8px;
+            transform: translateY(-50%);
+            width: 14px;
+            height: 14px;
+            filter: invert(55%) sepia(85%) saturate(600%) hue-rotate(240deg);
+            opacity: 1;
+            pointer-events: none;
+        }
+        
+        #searchInput {
+            width: 100%;
+            padding: 8px 8px 8px 28px;
+            height: 32px;
+            padding: 0 8px 0 28px;
+            border: none;
+            border-radius: 0;
+            background: var(--accent-0);
+            color: var(--accent-1);
+            font-family: "VenusCormier", system-ui, sans-serif;
+            font-weight: bold;
+            outline: none;
+            text-transform: uppercase;
+        }
+        
+        #refreshBtn {
+            width: 32px;
+            height: 32px;
+            flex-shrink: 0;
+            border: none;
+            background: var(--accent-0);
+            border-radius: 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+        
+        #refreshBtn img {
+            width: 16px;
+            height: 16px;
+            filter: invert(55%) sepia(85%) saturate(600%) hue-rotate(240deg);
+            opacity: 1;
+        }
+        
+        /* Toggle buttons row */
+        .toggle-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 6px;
+        }
+        
+        .toggle-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background: var(--base-0);
+            border: none;
+            border-radius: 0;
+            cursor: pointer;
+            height: 28px;
+            font-family: "VenusCormier", system-ui, sans-serif;
+            color: var(--accent-1);
+            font-size: 13px;
+            font-weight: bold;
+            text-transform: uppercase;
+            user-select: none;
+        }
+        
+        .toggle-btn input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .toggle-btn:has(input:checked) {
+            background: var(--accent-0);
+            color: var(--accent-1);
+        }
+        
+        /* Masonry grid */
+        #grid {
+            flex: 1 1 auto;
+            padding: 6px;
+            column-gap: 6px;
+            column-fill: balance;
+            column-width: 240px;
+        }
+        
+        @media (max-width: 1100px) { #grid { column-width: 200px; } }
+        @media (max-width: 900px)  { #grid { column-width: 180px; } }
+        @media (max-width: 700px)  { #grid { column-width: 160px; } }
+        @media (max-width: 400px)  { #grid { column-width: 100%; } }
+        
+        .card {
+            display: inline-block;
+            width: 100%;
+            margin: 0 0 6px;
+            overflow: hidden;
+            break-inside: avoid;
+        }
+        
+        .thumb {
+            width: 100%;
+            display: block;
+            object-fit: cover;
+            cursor: zoom-in;
+        }
+        
+        .empty {
+            color: var(--base-2);
+            text-align: center;
+            padding: 16px;
+        }
+        
+        /* Footer info */
+        .tierInfo {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--base-1);
+            padding: 6px 10px;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            z-index: 100;
+        }
+        
+        .tierInfo b {
+            color: var(--accent-0);
+            font-weight: normal;
+        }
+        
+        /* Lightbox */
+        #overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.95);
+            background: var(--base-0);
             display: none;
             flex-direction: column;
             z-index: 9999;
-            }
-            #overlay.open { display: flex; }
-
-            .lightbox-toolbar {
-                position: sticky;
-                top: 0;
-                display: flex;
-                align-items: center;
-                background: var(--base-1);
-                padding: 10px;
-                gap: 10px;
-                z-index: 2;
-            }
-            .lightbox-toolbar .spacer { flex: 1; }
-            .lightbox-toolbar button {
+        }
+        
+        #overlay.open { display: flex; }
+        
+        .lightbox-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--base-1);
+            padding: 6px 10px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+        
+        .lightbox-toolbar button {
+            background: none;
             border: none;
-            padding: 8px 14px;
-            font-size: 14px;
             cursor: pointer;
-            font-family: "VenusCormier", system-ui, sans-serif;
-            }
-            #backBtn   { background: var(--base-2); color: white; }
-            #closeBtn  { background: var(--accent-1); color: white; }
-            #deleteBtn { background: #b91c1c; color: white; }
-
-            .lightbox-content {
-                flex: 1;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                overflow: auto;
-                padding: 20px;
-                background: var(--base-0);
-            }
-            #fullImg {
+            display: flex;
+            align-items: center;
+        }
+        
+        .lightbox-toolbar img {
+            width: 20px;
+            height: 20px;
+            opacity: 0.9;
+        }
+        
+        .lightbox-content {
+            position: relative;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: 6px;
+        }
+        
+        #fullImg {
             max-width: 100%;
             max-height: 80vh;
             object-fit: contain;
             cursor: zoom-in;
-            transition: transform 0.2s ease;
-            }
-            #fullImg.zoomed {
+        }
+        
+        #fullImg.zoomed {
             transform: scale(2);
             cursor: zoom-out;
-            }
-            #linksBox {
-            margin-top: 20px;
-            text-align: center;
-            }
-            .header-top {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 12px;
-            }
-            .tierInfo {
-                display: flex;
-                flex-direction: column;
-                font-size: 14px;
-                color: var(--base-2);
-            }
-            .tierInfo b {
-                color: var(--accent-0);
-                font-weight: normal;
-            }
-
-            .search-box {
-                display: flex;
-                gap: 8px;
-                padding: 8px 12px;
-                background: var(--base-1);
-            }
-            #searchInput {
-                flex: 1;
-                padding: 8px;
-                border: none;
-                background: var(--base-0);
-                color: var(--accent-0x);
-                font-family: "VenusCormier", system-ui, sans-serif;
-            }
-
-            .domain-toggle {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                padding: 8px 12px;
-                background: var(--base-1);
-                color: var(--accent-0x);
-                font-size: 14px;
-            }
-            .domain-toggle input[type="checkbox"] {
-                accent-color: var(--accent-1);
-                width: 16px;
-                height: 16px;
-            }
-
-            .toggle-group {
-                display: flex;
-                flex-direction: column;
-                background: var(--base-1);
-                padding: 8px 12px;
-                gap: 6px;
-            }
-            .toggle-group label {
-                color: var(--accent-0x);
-                font-size: 14px;
-            }
-            .toggle-group input[type="checkbox"] {
-                accent-color: var(--accent-1);
-                width: 16px;
-                height: 16px;
-            }
-
-
-        </style>
-    </head>
-    <body>
-        <header>
-            <div class="header-top">
-                <button id="refreshBtn" type="button" title="Refresh">
-                    <svg fill="#a67bf2" width="24" height="24" viewBox="0 0 367.14 367.14" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M336.554,86.871c-11.975-18.584-27.145-34.707-44.706-47.731L330.801,0H217.436v113.91L270.4,60.691 c40.142,28.131,65.042,74.724,65.042,124.571c0,83.744-68.13,151.874-151.874,151.874S31.694,269.005,31.694,185.262 c0-58.641,32.781-111.009,85.551-136.669l-13.119-26.979C73.885,36.318,48.315,59.1,30.182,87.494 c-18.637,29.184-28.488,62.991-28.488,97.768c0,100.286,81.588,181.874,181.874,181.874s181.874-81.588,181.874-181.874 C365.442,150.223,355.453,116.201,336.554,86.871z"/>
-                    </svg>
-                </button>
-
-                <div class="tierInfo">
-                    <span>Tier: <b id="userTier">Loading...</b></span>
-                    <span>Saves: <b id="saveCounter">0</b> / <b id="maxSaves">0</b></span>
-                </div>
+        }
+        
+        #linksBox {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 10px 8px;
+            background: var(--base-1);
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        #linksBox a {
+            color: var(--accent-0);
+            text-decoration: none;
+            font-size: 13px;
+            word-break: break-all;
+        }
+        
+        #linksBox a:hover {
+            color: var(--accent-1);
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="search-box">
+            <div class="search-wrapper">
+                <img src="images/icons8-search-16.png" class="search-icon" alt="search" />
+                <input id="searchInput" type="text" placeholder="WHAT ARE YOU FORGORING?" />
             </div>
-            <div class="search-box">
-                <input id="searchInput" type="text" placeholder="Search your saved content…" />
-            </div>
-            <div class="toggle-group">
-                <div class="domain-toggle">
-                    <input type="checkbox" id="enableDomain" />
-                    <label for="enableDomain">Enable suggestions on this domain</label>
-                </div>
-                <div class="auto-refresh-toggle">
-                    <input type="checkbox" id="autoRefresh" />
-                    <label for="autoRefresh">Auto-refresh on tab change</label>
-                </div>
-            </div>
-        </header>
-        <main id="grid"></main>
-        <div id="overlay" aria-hidden="true">
-            <div class="lightbox-toolbar">
-                <button id="backBtn">BACK</button>
-                <div class="spacer"></div>
-                <button id="deleteBtn">DELETE</button>
-            </div>
-
-            <div class="lightbox-content">
-                <img id="fullImg" alt="" />
-                <div id="linksBox"></div>
-            </div>
+            <button id="refreshBtn" type="button" title="Refresh">
+                <img src="images/icons8-refresh-16.png" alt="refresh" />
+            </button>
         </div>
-
-        <script type="module" src="sidepanel.js"></script>
-    </body>
+        
+        <div class="toggle-row">
+            <label class="toggle-btn">
+                <input type="checkbox" id="enableDomain" />
+                <span>INCLUDE DOMAIN</span>
+            </label>
+            <label class="toggle-btn">
+                <input type="checkbox" id="autoRefresh" />
+                <span>AUTO REFRESH</span>
+            </label>
+        </div>
+    </header>
+    
+    <main id="grid"></main>
+    
+    <div id="overlay" aria-hidden="true">
+        <div class="lightbox-toolbar">
+            <button id="backBtn"><img src="images/icons8-back-16.png" alt="back" /></button>
+            <button id="deleteBtn"><img src="images/icons8-delete-16.png" alt="delete" /></button>
+        </div>
+        <div class="lightbox-content">
+            <img id="fullImg" alt="" />
+            <div id="linksBox"></div>
+        </div>
+    </div>
+    
+    <div class="tierInfo">
+        <span>Tier: <b id="userTier">Loading…</b></span>
+        <span>Saves: <b id="saveCounter">0</b> / <b id="maxSaves">0</b></span>
+    </div>
+    
+    <script type="module" src="sidepanel.js"></script>
+</body>
 </html>
